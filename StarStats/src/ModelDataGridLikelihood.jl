@@ -12,11 +12,14 @@ mutable struct ModelDataGridLikelihood
     
     function ModelDataGridLikelihood(grid, observable_names, observable_values, observable_errors)
         likelihood = zeros(size(grid.dfs)...)
-      
+
+        # iterate over all elements in the multi-dimensional grid
+        # This is done by creating an iterator with the indeces for each element in the arbitrary input dimensions
         for index in Base.product([1:length(input) for input in grid.inputs]...)
             if !isassigned(grid.dfs,index...)
                 continue
             end
+            # go line by line in the DataFrame (timestep by timestep)
             for x in eachrow(grid.dfs[index...])
                 step_likelihood = x.dt
                          
