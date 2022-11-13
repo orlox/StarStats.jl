@@ -1,6 +1,6 @@
 using CSV, DataFrames, CodecZlib
 
-export ModelDataGrid, load_grid, compute_distances_and_EEPs
+export ModelDataGrid, load_grid, compute_distances_and_EEPs, gz_dataframe_loader_with_Teff_fix
 
 """
     ModelDataGrid
@@ -29,7 +29,7 @@ mutable struct ModelDataGrid
     end
 end
 
-function load_grid(grid::ModelDataGrid, path_constructor)
+function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
     for index in Base.product([1:length(input) for input in grid.inputs]...)
         strings = Vector{String}(undef, length(index))
         for (i,j) in enumerate(index)
@@ -39,9 +39,16 @@ function load_grid(grid::ModelDataGrid, path_constructor)
         if !isfile(path)
             continue
         end
-        file = GzipDecompressorStream(open(path))
-        grid.dfs[index...] = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true)
+        grid.dfs[index...] = gz_dataframe_loader_with_Teff_fix(path)
     end
+end
+
+function gz_dataframe_loader_with_Teff_fix(path)
+    file = GzipDecompressorStream(open(path))
+    df = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true)
+    df[!,:logTeff] = copy(df.Teff)
+    df[!,:Teff] .= 10.0.^(df.Teff)
+    return df
 end
 
 function compute_distances_and_EEPs(grid::ModelDataGrid)
@@ -58,7 +65,7 @@ function compute_distances_and_EEPs(grid::ModelDataGrid)
         delta_log_L = 0
 
         for i in 2:size(df,1)
-            delta_log_Teff = df.Teff[i]-df.Teff[i-1]
+            delta_log_Teff = df.logTeff[i]-df.logTeff[i-1]
             delta_log_L = df.logL[i]-df.logL[i-1]
 
             distance[i] = distance[i-1] + sqrt(delta_log_Teff^2 + delta_log_L^2)
