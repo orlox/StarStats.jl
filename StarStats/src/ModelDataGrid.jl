@@ -1,4 +1,4 @@
-using CSV, DataFrames, CodecZlib
+using CSV, DataFrames, CodecZlib, Base.Threads
 
 export ModelDataGrid, load_grid, compute_distances_and_EEPs, gz_dataframe_loader_with_Teff_fix
 
@@ -31,7 +31,7 @@ mutable struct ModelDataGrid
 end
 
 function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
-    for index in collect(Base.product([1:length(input) for input in grid.inputs]...))
+    @threads for index in collect(Base.product([1:length(input) for input in grid.inputs]...))
         strings = Vector{String}(undef, length(index))
         for (i,j) in enumerate(index)
             strings[i] = grid.inputs[i][j]
@@ -46,7 +46,7 @@ end
 
 function gz_dataframe_loader_with_Teff_fix(path)
     file = GzipDecompressorStream(open(path))
-    df = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true)
+    df = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true, ntasks=1)
     df[!,:logTeff] = copy(df.Teff)
     df[!,:Teff] .= 10.0.^(df.Teff)
     return df
