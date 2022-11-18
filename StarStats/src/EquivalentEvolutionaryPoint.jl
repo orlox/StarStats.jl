@@ -1,10 +1,10 @@
 export get_EEPs, get_secondary_EEP, interpolate_grid_quantity
 
-function get_EEPs(track)
-    return get_EEPs_internal(track.c_h1, track.c_he4, size(track,1))
+function get_EEPs(track, Xc_TAMS)
+    return get_EEPs_internal(track.c_h1, track.c_he4, size(track,1), Xc_TAMS)
 end
 
-function get_EEPs_internal(central_h1, central_he4, nrows)
+function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
     initial_central_h1 = central_h1[1]
     ZAMS_EEP = 0
     IAMS_EEP = 0
@@ -39,7 +39,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows)
     EEPs[2] = IAMS_EEP
     # TAMS_EEP
     for i in IAMS_EEP+1:nrows
-        if central_h1[i] < 1e-12
+        if central_h1[i] < Xc_TAMS
             TAMS_EEP = i
             break
         end

@@ -20,17 +20,18 @@ mutable struct ModelDataGrid
     input_names::Vector{Symbol}
     input_values::Vector{Vector{Float64}}
     EEPs::Array{Int64}
+    Xc_TAMS::Float64
     function ModelDataGrid(inputs, input_names)
         dimensions = [length(input) for input in inputs]
         input_values = [parse.(Float64, input) for input in inputs  ]
         dfs = Array{DataFrame}(undef,dimensions...)
         EEPs = zeros(dimensions...,6) # We consider six EEPs right now
-        new(dfs,inputs,input_names, input_values, EEPs)
+        new(dfs,inputs,input_names, input_values, EEPs, 1e-12)
     end
 end
 
 function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
-    for index in Base.product([1:length(input) for input in grid.inputs]...)
+    for index in collect(Base.product([1:length(input) for input in grid.inputs]...))
         strings = Vector{String}(undef, length(index))
         for (i,j) in enumerate(index)
             strings[i] = grid.inputs[i][j]
@@ -39,7 +40,7 @@ function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
         if !isfile(path)
             continue
         end
-        grid.dfs[index...] = gz_dataframe_loader_with_Teff_fix(path)
+        grid.dfs[index...] = dataframe_loader(path)
     end
 end
 
@@ -58,7 +59,7 @@ function compute_distances_and_EEPs(grid::ModelDataGrid)
         end
 
         df = grid.dfs[index...]
-        grid.EEPs[index...,:] = get_EEPs(df)
+        grid.EEPs[index...,:] = get_EEPs(df, grid.Xc_TAMS)
 
         distance = zeros(size(df,1))
         delta_log_Teff = 0
