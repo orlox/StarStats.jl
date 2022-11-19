@@ -1,3 +1,5 @@
+using Base.Threads
+
 export get_EEPs, get_secondary_EEP, interpolate_grid_quantity
 
 function get_EEPs(track, Xc_TAMS)
@@ -137,7 +139,7 @@ function interpolate_grid_quantity(grid, grid_parameters, interpolated_quantity,
     lower_i = zeros(Int, length(grid.input_names))
     grid_values = zeros(length(grid.input_names),2)
     # get values of parameters at edges
-    for j in 1:length(grid.input_names)
+    @threads for j in 1:length(grid.input_names)
         for i in 1:(length(grid.input_values[j])-1)
             if grid.input_values[j][i] <= grid_parameters[j] && grid.input_values[j][i+1] >= grid_parameters[j]
                 grid_values[j,1] = grid.input_values[j][i]
@@ -156,7 +158,7 @@ function interpolate_grid_quantity(grid, grid_parameters, interpolated_quantity,
     # get value of quantity to interpolate at vertices at a given x
     yvalues = zeros(typeof(x),[2 for i in 1:length(grid.input_names)]...)
     df_index = zeros(Int, length(grid.input_names))
-    for index in Base.product([1:2 for i in 1:length(grid.input_names)]...)
+    @threads for index in collect(Base.product([1:2 for i in 1:length(grid.input_names)]...))
         df_index .= lower_i.+index.-1
         if !isassigned(grid.dfs,df_index...)
             return NaN
