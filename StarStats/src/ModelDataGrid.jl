@@ -1,6 +1,6 @@
 using CSV, DataFrames, CodecZlib, Base.Threads
 
-export ModelDataGrid, load_grid, compute_distances_and_EEPs, gz_dataframe_loader_with_Teff_fix
+export ModelDataGrid, load_grid, compute_distances_and_EEPs, gz_dataframe_loader_with_Teff_and_star_age_fix
 
 """
     ModelDataGrid
@@ -44,11 +44,12 @@ function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
     end
 end
 
-function gz_dataframe_loader_with_Teff_fix(path)
+function gz_dataframe_loader_with_Teff_and_star_age_fix(path)
     file = GzipDecompressorStream(open(path))
     df = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true, ntasks=1)
     df[!,:logTeff] = copy(df.Teff)
     df[!,:Teff] .= 10.0.^(df.Teff)
+    df[!,:star_age] .= copy(df.age)
     return df
 end
 
@@ -71,7 +72,36 @@ function compute_distances_and_EEPs(grid::ModelDataGrid)
 
             distance[i] = distance[i-1] + sqrt(delta_log_Teff^2 + delta_log_L^2)
         end
-
         df[!,:distance] = distance
+
+        x = zeros(size(df,1))
+        for j in 1:(length(grid.EEPs[index...,:])-1)
+            start_EEP = grid.EEPs[index...,j]
+            end_EEP = grid.EEPs[index...,j+1]
+            if start_EEP==0 || end_EEP==0
+                break
+            end
+            start_distance = df.distance[start_EEP]
+            end_distance = df.distance[end_EEP]
+            for i in start_EEP:end_EEP
+                x[i] = (df.distance[i]-start_distance)/(end_distance-start_distance) + (j-1)
+            end
+        end
+        for i in length(size(df,1)):1:-1
+            if x[i] > 0
+                x[i:end] .= x[i]
+                break
+            end
+        end
+        df[!,:x] = x
+
+        dtdx = zeros(size(df,1))
+        for i in 2:size(df,1)
+            if (df.x[i]-df.x[i-1])<=0
+                continue
+            end
+            dtdx[i] = (df.star_age[i]-df.star_age[i-1])/(df.x[i]-df.x[i-1])
+        end
+        df[!,:dtdx] = dtdx
     end
 end

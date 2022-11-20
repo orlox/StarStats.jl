@@ -1,5 +1,3 @@
-using Base.Threads
-
 export get_EEPs, get_secondary_EEP, interpolate_grid_quantity
 
 function get_EEPs(track, Xc_TAMS)
@@ -83,63 +81,20 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
     return EEPs
 end
 
-function get_secondary_EEP(x, track, EEPs, interpolated_quantity)
-    start_index = 0
-    end_index = 0
-    #rescale x to go from zero to one in the relevant phase
-    if x>=0 && x<1 # ZAMS to IAMS
-        start_index = EEPs[1]
-        end_index = EEPs[2]
-    elseif x>=1 && x<2 # IAMS to TAMS
-        start_index = EEPs[2]
-        end_index = EEPs[3]
-        x = x-1
-    elseif x>=2 && x<3 # TAMS to RGBTip
-        start_index = EEPs[3]
-        end_index = EEPs[4]
-        x = x-2
-    elseif x>=3 && x<4 # RGBTip to ZACHeB
-        start_index = EEPs[4]
-        end_index = EEPs[5]
-        x = x-3
-    elseif x>=4 && x<=5 # ZACHeB to TACHeB
-        start_index = EEPs[5]
-        end_index = EEPs[6]
-        x = x-4
-    end
-
-    if start_index == 0 || end_index == 0
-        return NaN
-    end
-
-    desired_distance = get_desired_distance(start_index, end_index, track.distance, x)
-
-    (distances, vals) = get_values_around_desired_distance(start_index, end_index, 
-                                        desired_distance, track.distance, getproperty(track, interpolated_quantity))
-
-    return vals[1] + (desired_distance-distances[1])/(distances[2]-distances[1])*(vals[2]-vals[1]) # interpolate in x
+function get_secondary_EEP(x, track, interpolated_quantity)
+    get_secondary_EEP_internal(x, track.x, getproperty(track, interpolated_quantity))
 end
-
-function get_desired_distance(start_index, end_index, distance, x)
-    return distance[start_index] + x*(distance[end_index] - distance[start_index])
-end
-
-function get_values_around_desired_distance(start_index, end_index, desired_distance, distance, required_quantity)
-    lower_i = 0
-    for i in start_index:(end_index-1)
-        if desired_distance >= distance[i] && desired_distance <= distance[i+1]
-            lower_i = i
-            break
-        end
-    end
-    return ((distance[lower_i], distance[lower_i+1]),(required_quantity[lower_i], required_quantity[lower_i+1]))
+function get_secondary_EEP_internal(x, trackx, interp_values)
+    #dirty check to not overflow at edge
+    lower_i = min(searchsorted(trackx,x).stop, length(trackx)-1)
+    return interp_values[lower_i] + (x-trackx[lower_i])/(trackx[lower_i+1]-trackx[lower_i])*(interp_values[lower_i+1]-interp_values[lower_i]) # interpolate in x
 end
 
 function interpolate_grid_quantity(grid, grid_parameters, interpolated_quantity, x)
     lower_i = zeros(Int, length(grid.input_names))
     grid_values = zeros(length(grid.input_names),2)
     # get values of parameters at edges
-    @threads for j in 1:length(grid.input_names)
+    for j in 1:length(grid.input_names)
         for i in 1:(length(grid.input_values[j])-1)
             if grid.input_values[j][i] <= grid_parameters[j] && grid.input_values[j][i+1] >= grid_parameters[j]
                 grid_values[j,1] = grid.input_values[j][i]
@@ -158,12 +113,12 @@ function interpolate_grid_quantity(grid, grid_parameters, interpolated_quantity,
     # get value of quantity to interpolate at vertices at a given x
     yvalues = zeros(typeof(x),[2 for i in 1:length(grid.input_names)]...)
     df_index = zeros(Int, length(grid.input_names))
-    @threads for index in collect(Base.product([1:2 for i in 1:length(grid.input_names)]...))
+    for index in collect(Base.product([1:2 for i in 1:length(grid.input_names)]...))
         df_index .= lower_i.+index.-1
         if !isassigned(grid.dfs,df_index...)
             return NaN
         end
-        yvalues[index...] = get_secondary_EEP(x,grid.dfs[df_index...], grid.EEPs[df_index...,:], interpolated_quantity)
+        yvalues[index...] = get_secondary_EEP(x,grid.dfs[df_index...], interpolated_quantity)
     end
 
     for i in 1:length(grid.input_names)
