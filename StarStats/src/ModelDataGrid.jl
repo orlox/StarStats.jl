@@ -13,6 +13,8 @@ Struct containing the definition of a grid including the input variables definin
 - inputs: Vector of String vectors containing the parth of the path from a track. (TODO give an example)
 - input_names: Vector of Symbol containing the names of each parameter of the grid.  
 - input_values: Result of parsing the inputs into floats.   
+- EEPs: Array of integers representing the Equivelant Evolutionary Points (see Dotter, 2016)
+- Xc_TAMS: Float denoting the limit  in central hydrogen at which one defines the TAMS
 """
 mutable struct ModelDataGrid
     dfs::Array{DataFrame}
@@ -30,6 +32,17 @@ mutable struct ModelDataGrid
     end
 end
 
+"""
+    load_grid
+
+Function that does bla
+
+# Fields: 
+-  grid:
+-  path_constructor
+-  dataframe_loader:
+"""
+
 function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
     @threads for index in collect(Base.product([1:length(input) for input in grid.inputs]...))
         strings = Vector{String}(undef, length(index))
@@ -44,6 +57,15 @@ function load_grid(grid::ModelDataGrid, path_constructor, dataframe_loader)
     end
 end
 
+"""
+    gz_dataframe_loader_with_Teff_and_star_age_fix
+
+Function 
+
+# Fields: 
+-   
+"""
+
 function gz_dataframe_loader_with_Teff_and_star_age_fix(path)
     file = GzipDecompressorStream(open(path))
     df = CSV.read(file, DataFrame, delim=" ", ignorerepeated=true, ntasks=1)
@@ -53,6 +75,14 @@ function gz_dataframe_loader_with_Teff_and_star_age_fix(path)
     return df
 end
 
+"""
+   compute_distances_and_EEPs
+
+Function 
+
+# Fields: 
+-   
+"""
 function compute_distances_and_EEPs(grid::ModelDataGrid)
     for index in Base.product([1:length(input) for input in grid.inputs]...)
         if !isassigned(grid.dfs,index...)
