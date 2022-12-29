@@ -23,12 +23,18 @@ mutable struct ModelDataGrid
     input_values::Vector{Vector{Float64}}
     EEPs::Array{Int64}
     Xc_TAMS::Float64
-    function ModelDataGrid(inputs, input_names)
+    function ModelDataGrid(inputs, input_names; input_values = nothing, Xc_TAMS = 1e-12)
         dimensions = [length(input) for input in inputs]
-        input_values = [parse.(Float64, input) for input in inputs  ]
+        if isnothing(input_values)
+            input_values = [parse.(Float64, input) for input in inputs]
+        else
+            if length(input_values) != length(input_names)
+                throw(DomainError(input_values, "Length of input_names and input_values must match"))
+            end
+        end
         dfs = Array{DataFrame}(undef,dimensions...)
         EEPs = zeros(dimensions...,6) # We consider six EEPs right now
-        new(dfs,inputs,input_names, input_values, EEPs, 1e-12)
+        new(dfs,inputs,input_names, input_values, EEPs, Xc_TAMS)
     end
 end
 
