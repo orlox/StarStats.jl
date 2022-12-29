@@ -8,7 +8,7 @@ export create_corner_plot, create_2D_density, create_1D_density
 function create_corner_plot(chain_values,names,label_names, chain_weights, fractions, fraction_1D, figure; show_CIs = false)
     ga = figure[1, 1] = GridLayout()
    
-    num_col = length(chain_values)-1
+    num_col = length(names)-1
     for i in 1:num_col
         for  j in i+1:num_col+1
             axis = Axis(ga[j,i],xtickalign=1,xtickcolor = :white,ytickalign=1,ytickcolor = :white, 
@@ -35,6 +35,7 @@ function create_corner_plot(chain_values,names,label_names, chain_weights, fract
         if show_CIs
             axis.title = "$(xmode)^$(xmax-xmode)_$(xmode-xmin)"
         end
+        print(label_names[i]*"="*"$(xmode)^$(xmax-xmode)_$(xmode-xmin)\n")
     end     
     rowgap!(ga,10)
     colgap!(ga,10)
@@ -97,3 +98,31 @@ function create_1D_density(values, chain_weights,fraction_1D,axis)
     return (xmin, xmode, xmax)
    
 end
+
+function concatenate_chains(star_chains)
+    concatenated_chains = Dict()
+    for name in Base.names(star_chains)
+        concatenated_chains[name] = star_chains[:,name,:][:]
+    end
+    return concatenated_chains
+ end
+ 
+ function compute_chain_weights(cchains)
+     dtdx=zeros(length(cchains[:x]))
+     for i in 1:length(dtdx)
+         dtdx[i]= interpolate_grid_quantity(grid,[cchains[:rotation][i], cchains[:logM][i], cchains[:overshoot][i]],:dtdx,cchains[:x][i])
+     end
+     return dtdx .* cchains[:logM].^-1.35
+ end
+ 
+ function get_star_corner_plot(star_chains)
+     names = [:logM, :rotation, :overshoot]
+     cchains = concatenate_chains(star_chains)
+     chain_weights = compute_chain_weights(cchains)
+     fractions =[0.68,0.95, 0.997]
+     fraction_1D = 0.68
+     figure= Figure()
+     label_names = [L"\log(M/M_{\odot})", L"\omega/\omega_{crit}", L"\alpha_\mathrm{ov}" ]
+ 
+     create_corner_plot(chain_values,names,label_names, chain_weights, fractions, fraction_1D, figure, show_CIs = false)
+ end
