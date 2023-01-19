@@ -3,7 +3,7 @@ using StatsBase
 using CairoMakie
 using Turing
 
-export create_corner_plot, create_2D_density, create_1D_density
+export create_corner_plot, create_2D_density, create_1D_density, get_star_corner_plot
 
 function create_corner_plot(chain_values,names,label_names, chain_weights, fractions, fraction_1D, figure; show_CIs = false)
     ga = figure[1, 1] = GridLayout()
@@ -107,22 +107,22 @@ function concatenate_chains(star_chains)
     return concatenated_chains
  end
  
- function compute_chain_weights(cchains)
+ function compute_chain_weights(star_grid,cchains)
      dtdx=zeros(length(cchains[:x]))
      for i in 1:length(dtdx)
-         dtdx[i]= interpolate_grid_quantity(grid,[cchains[:rotation][i], cchains[:logM][i], cchains[:overshoot][i]],:dtdx,cchains[:x][i])
+         dtdx[i]= interpolate_grid_quantity(star_grid,[cchains[:rotation][i], cchains[:logM][i], cchains[:overshoot][i]],:dtdx,cchains[:x][i])
      end
      return dtdx .* cchains[:logM].^-1.35
  end
  
- function get_star_corner_plot(star_chains)
+ function get_star_corner_plot(star_grid,star_chains)
      names = [:logM, :rotation, :overshoot]
      cchains = concatenate_chains(star_chains)
-     chain_weights = compute_chain_weights(cchains)
+     chain_weights = compute_chain_weights(star_grid,cchains)
      fractions =[0.68,0.95, 0.997]
      fraction_1D = 0.68
      figure= Figure()
      label_names = [L"\log(M/M_{\odot})", L"\omega/\omega_{crit}", L"\alpha_\mathrm{ov}" ]
  
-     create_corner_plot(chain_values,names,label_names, chain_weights, fractions, fraction_1D, figure, show_CIs = false)
+     create_corner_plot(cchains,names,label_names, chain_weights, fractions, fraction_1D, figure, show_CIs = false)
  end
