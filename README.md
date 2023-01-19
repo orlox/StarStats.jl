@@ -4,9 +4,9 @@ This package is designed to read grids of stellar evolution models from differen
 
 The following code  block shows an example of loading a grid with three variable parameters
 
-* masses: sampled logarithmically log M/M$_{\odot}$=0.9-2.1 in steps of 0.025
-* rotation:  omega/omega$_{crit}$=0.0-0.9 sampled linearly in steps of 0.1
-* overshoot:  step overshooting parameter $\alpha_{overshoot}/0.335$=0.5-4.5 in steps of 0.5
+* masses: sampled logarithmically $\log M/M_{\odot}=0.9-2.1$ in steps of $0.025$
+* rotation:  $\omega/\omega_{crit}=0.0-0.9$ sampled linearly in steps of $0.1$
+* overshoot:  step overshooting parameter $\alpha_{overshoot}/0.335=0.5-4.5$ in steps of $0.5$
 
 The function `path_constructor` defines the location of each simulation based on the input parameters.
 
