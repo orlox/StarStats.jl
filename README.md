@@ -4,7 +4,7 @@ This package is designed to read grids of stellar evolution models from differen
 
 The following code  block shows an example of loading a grid with three variable parameters
 
-* masses: sampled logarithmically log M/M_{\odot}$=0.9-2.1 in steps of 0.025
+* masses: sampled logarithmically $\log M/M_{\odot}=$0.9-2.1 in steps of 0.025
 * r
 
 ```julia
