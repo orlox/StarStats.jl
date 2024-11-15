@@ -2,99 +2,118 @@
 
 This package is designed to read grids of stellar evolution models from different evolutionary codes and perform interpolation and Bayesian inference against observed systems.
 
-The following code  block shows an example of loading a grid with three variable parameters
+The following code  block shows an example of loading a grid with two variable parameters
 
-* masses: sampled logarithmically $\log M/M_{\odot}=0.9-2.1$ in steps of $0.025$
-* rotation:  $\omega/\omega_{crit}=0.0-0.9$ sampled linearly in steps of $0.1$
-* overshoot:  step overshooting parameter $\alpha_{overshoot}/0.335=0.5-4.5$ in steps of $0.5$
+* masses: sampled linearly $M/M_{\odot}=20-60$ in steps of $2M_{\odot}$
+* rotation:  $v/[\mathrm{km\,s^{-1}}]=0-550$ sampled linearly in steps of $50\,[\mathrm{km\,s^{-1}}]$
 
-The function `path_constructor` defines the location of each simulation based on the input parameters.
+The function `path_constructor` defines the location of each simulation based on the input parameters. In this case we use data from MESA, for which there is a built-in
+function to read history.data files
 
 ```julia
 using StarStats
-using Printf
 
+# load up simulation grid
 function path_constructor(strings::Vector{String})
-    DATA_FOLDER = ENV["STARSTATS_TEST_DATA_FOLDER"]
-    return DATA_FOLDER*"/LMC/LMC_$(strings[1])_$(strings[2])_$(strings[3]).track.gz"
+    # this tells me how to construct a path to the data from the simulation input
+    # it assumes files are at ./MODELS/LOGS_<MASS>_<ROTATION>/history.data
+    return "./MODELS/LOGS_$(strings[1])_$(strings[2])/history.data"
 end
-masses = [@sprintf("%.3f", x) for x in range(0.9,2.1,step=0.025)]
-rotation = [@sprintf("%.2f", x) for x in range(0.0,0.9,step=0.1)]
-overshoot = [@sprintf("%.2f
-", x) for x in range(0.5,4.5,step=0.5)]
-
-star_grid = ModelDataGrid([rotation,masses,overshoot],[:rotation,:logM,:overshoot])
-load_grid(star_grid,path_constructor,gz_dataframe_loader_with_Teff_and_star_age_fix); 
-compute_distances_and_EEPs(grid)
+masses = ["$(x)" for x in 20:2:60]
+rotation = ["$(x)" for x in 0:50:550]
+star_grid = ModelDataGrid([masses, rotation],[:mass,:rotation])
+load_grid(star_grid,path_constructor,StarStats.mesa_dataframe_loader); 
+compute_distances_and_EEPs(star_grid)
 ```
 
-After loading the grid one can perform interpolations to produce a grid at arbitrary input values. See example below
+After loading the grid one can perform interpolations to produce a grid at arbitrary input values. See example below, the evolutionary stage is taken from the quantity
+$x$, which is zero at ZAMS, 1 at the intermediate main sequence and 2 at TAMS. This
+is based on the equivalent evolutionary points described by [Dotter et al. (2016)](https://ui.adsabs.harvard.edu/abs/2016ApJS..222....8D/abstract)
 
 ```julia
-using LaTeXStrings
-using Plots
-plot(legend=false,
-xflip=true, 
-xlabel=L"log (T$_{eff}$/K)",
-ylabel=L"log (L/L$_{\odot}$)")
-
-xvals = LinRange(0,5, 1000)
-rotation = 0.13
-logM = 1.21
-overshoot = 1.05
-logTeff = interpolate_grid_quantity.(Ref(grid),Ref([rotation,logM,overshoot]),:logTeff, xvals)
-logL = interpolate_grid_quantity.(Ref(grid),Ref([0.13,1.21,1.05]),:logL, xvals)
-
-plot!(logTeff, logL)
-savefig("HR.png")
+# plot an example interpolated track
+using LaTeXStrings, CairoMakie
+xvals = LinRange(0,2.0, 1000)
+rotation = 450.0
+mass = 32.0
+logTeff = interpolate_grid_quantity.(Ref(star_grid),Ref([mass, rotation]),:logTeff, xvals)
+logL = interpolate_grid_quantity.(Ref(star_grid),Ref([mass, rotation]),:logL, xvals)
+f = Figure()
+ax = Axis(f[1,1], ylabel=L"\log_{10}(L/L_\odot)", xlabel=L"\log_{10}(T_\mathrm{eff}/[\mathrm{K}])", xreversed=true)
+lines!(logTeff, logL)
+save("HR.png", f)
+f
 ```
 
-![example HR](test_notebook/HR.png)
+![example HR](HR.png)
 
-Using the loaded grid one can perform Bayesian inference of initial parameters of an observed star.
-
-We use the `Turing` package to perform an MCMC   for a given  observed values of a star. Below we construct the model that receives values for effective temperature, luminosity and rotation with their corresponding errors.
+Using the loaded grid one can perform Bayesian inference of initial parameters of an observed star. We use the `Turing` package to perform an MCMC   for a given  observed values of a star. Below we construct the model that receives values for effective temperature, luminosity and rotation with their corresponding errors.
 
 ```julia
+# create an MCMC model for an observation with Teff, logL and vrot
 using Turing, Distributions
-
 @model function star_model(logTeff_obs, logTeff_err, logL_obs, logL_err, vrot_obs, vrot_err, star_grid)
-  x ~ Uniform(0,3)
-  logM ~ Uniform(0.9, 1.5)
-  rotation ~ Uniform(0,0.9)
-  overshoot ~ Uniform(0.5,1.5)
-  logTeff = interpolate_grid_quantity(star_grid,[rotation, logM, overshoot],:logTeff,x)
-  logL = interpolate_grid_quantity(star_grid,[rotation, logM, overshoot],:logL,x)
-  vrot = interpolate_grid_quantity(star_grid,[rotation, logM, overshoot],:vrot,x)
+  x ~ Uniform(0,2)
+  mass ~ Uniform(20,60)
+  vrot_i ~ Uniform(0,550)
+  cosi ~ Uniform(0,1)
+  i = acos(cosi)
+  logTeff = interpolate_grid_quantity(star_grid,[mass, vrot_i],:logTeff,x)
+  logL = interpolate_grid_quantity(star_grid,[mass, vrot_i],:logL,x)
+  vrot = interpolate_grid_quantity(star_grid,[mass, vrot_i],:surf_avg_v_rot,x)
+  vsini = vrot*sin(i)
   logTeff_obs ~ Normal(logTeff, logTeff_err)
   logL_obs ~ Normal(logL, logL_err)
-  vrot_obs ~ Normal(vrot, vrot_err)
-  return logTeff_obs, logL_obs, vrot_obs
+  vrot_obs ~ Normal(vsini, vrot_err)
 end
 ```
 
 With this model so defined we run four independent MCMC chains using the NUTS algorithm.
 
 ```julia
-using Logging
-Logging.disable_logging(Logging.Warn)
-## Here needs more analysis for optimization
 num_chains=4
-
-observed_star_model = star_model(4.51974, 0.2, 4.289877, 0.2, 70.7195, 20, star_grid)
-star_chains = mapreduce(c -> sample(observed_star_model, NUTS(500,0.9), 20000;stream=false, progress=true), chainscat, 1:num_chains)
+observed_star_model = star_model(4.5, 0.05, 5.4, 0.05, 250.0, 10.0, star_grid)
+chains = sample(observed_star_model, NUTS(500,0.9), MCMCThreads(), 20000, 4)
 ```
 
-One can  construct the corner plot and obtain the credible intervals for the initial parameters using the `get_star_corner_plot` function.
+One can  construct the corner plot and obtain the credible intervals for the initial parameters using the `CornerPlotting.jl` package.
 
 ```julia
-using Makie
+# Show the raw results
+using CornerPlotting
+set_theme!(CornerPlotting.default_theme())
+corner_plot = CornerPlotting.CornerPlot(chains,[:mass, :vrot_i, :cosi])
+save("corner_plot1.png", corner_plot.fig)
+corner_plot.figusing Makie
 figure = get_star_corner_plot(star_grid,star_chains)
-save("corner_plot.png",figure)```
+save("corner_plot.png",figure)
 ```
 
+![example corner plot](corner_plot1.png)
 
-![example corner plot](test_notebook/corner_plot.png)
+In practice, we need to properly weight things. Above example is sampled uniformly
+in mass and in the evolutionary property x, which is not linear with time.
+We can correct this by creating a weights array
 
+```julia
+weights = zeros(size(chains[:mass]))
+for i in eachindex(weights)
+    mass = chains[:mass][i]
+    rotation = chains[:vrot_i][i]
+    x = chains[:x][i]
+    dtdx = interpolate_grid_quantity(star_grid,[mass, rotation],:dtdx,x)
+    weights[i] = dtdx*mass^(-2.3) # Salpeter IMF
+end
+# we create a results dictionary with the weights, and do a corner plot
+results = Dict(
+    :mass => chains[:mass],
+    :vrot_i => chains[:vrot_i],
+    :i => acos.(chains[:cosi]) .* 180 ./ pi,
+    :weights => weights
+)
+corner_plot = CornerPlotting.CornerPlot(results,[:mass, :vrot_i, :i])
+save("corner_plot2.png", corner_plot.fig)
+corner_plot.fig
+```
 
-
+![example corner plot](corner_plot2.png)
