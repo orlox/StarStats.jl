@@ -15,9 +15,6 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ./StarStats
     timeout-minutes: 60
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
@@ -39,8 +36,14 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - name: Develop and test Makie
+        shell: julia --project=.
+        run: |
+          using Pkg
+          pkg"registry up"
+          Pkg.update()
+          pkg"dev ./StarStats"
+          Pkg.test("StarStats"; coverage=true)
   #docs:
   #  name: Documentation
   #  runs-on: ubuntu-latest
