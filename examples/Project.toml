@@ -1,0 +1,6 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+StarStats = "3d48db48-6773-11ed-1a7e-43a2532b2fa8"
+Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
