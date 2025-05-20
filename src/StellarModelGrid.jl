@@ -14,7 +14,6 @@ Struct containing the definition of a grid including the input variables definin
 - input_names: Vector of Symbol containing the names of each parameter of the grid.  
 - input_values: Result of parsing the inputs into floats.   
 - EEPs: Array of integers representing the Equivelant Evolutionary Points (see Dotter, 2016)
-- Xc_TAMS: Float denoting the limit  in central hydrogen at which one defines the TAMS
 """
 mutable struct StellarModelGrid
     models::Array{SimulationData}
@@ -44,10 +43,6 @@ mutable struct StellarModelGrid
     end
 end
 
-function interpolate_grid_quantity(grid, grid_parameters, interpolated_quantity, x::T) where{T}
-    return interpolate_grid_quantity_internal(grid.models, grid.input_values, grid_parameters, interpolated_quantity, x)
-end
-
 function model_index_element(i, lower_i, cartesian_index)
     return cartesian_index[i]+lower_i[i]-1
 end
@@ -66,7 +61,9 @@ function interpolator_index2_element(j,i,index1)
     return index1[j]
 end
 
-function interpolate_grid_quantity_internal(models, input_values, grid_parameters, interpolated_quantity, x::T) where{T}
+function interpolate_grid_quantity(grid::StellarModelGrid, grid_parameters, interpolated_quantity, x::T) where{T}
+    models = grid.models
+    input_values = grid.input_values
     dimensions = ndims(models)
     lower_i = zeros(Int, dimensions)
     grid_values = zeros(dimensions,2)
