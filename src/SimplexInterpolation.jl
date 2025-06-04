@@ -3,6 +3,7 @@ using StaticArrays
 using LinearAlgebra
 using Quickhull
 using StatsBase
+using CairoMakie
 
 """
     struct InterpSimplex
@@ -95,10 +96,14 @@ function barycentric_coords(point, s::InterpSimplex{N,P,LU,E}) where {N,P,LU,E}
 end
 
 function plot_simplex_2d(ax,s,color)
+    if size(s.points, 1) !=2
+        error("Simplex visualisation only works for 2D")
+    end
     p1 = s.points[:,1]
     p2 = s.points[:,2]
     p3 = s.points[:,3]
     lines!(ax, [p1[1],p2[1],p3[1],p1[1]], [p1[2],p2[2],p3[2],p1[2]], color=color)
+    scatter!(ax, [p1[1],p2[1],p3[1]], [p1[2],p2[2],p3[2]])
 end
 
 struct NullSimplexTree end
@@ -217,10 +222,18 @@ end
     function SimplexInterpolant(points)
 Constructor for a `SimplexInterpolant` based on a set of `points`. `points` must be a matrix of dimensions ndims x npoints. 
 """
-function SimplexInterpolant(points; maxdepth=12)
-    tri = delaunay(points)
-    facets_eval = facets(tri)
+function SimplexInterpolant(points; maxdepth=12, normalize=true)
     ndims = size(points,1)
+    points_copy = copy(points)
+    if normalize
+        for i in ndims
+            max_value = maximum(points[i,:])
+            min_value = minimum(points[i,:])
+            points_copy[i,:] .= points_copy[i,:]./(max_value-min_value)
+        end
+    end
+    tri = delaunay(points_copy)
+    facets_eval = facets(tri)
     simplexes = []
     for (i, facet) in enumerate(facets_eval)
         indeces = facet.data
@@ -274,4 +287,13 @@ function compute_simplex_interpolation(info, values)
         val = val + coeffs[i]*values[indeces[i]]
     end
     return val
+end
+
+"""
+TODO
+"""
+function visualize_simplex_interpolant(ax, si::SimplexInterpolant; color=:blue)
+    for s in si.simplexes
+        plot_simplex_2d(ax, s, color)
+    end
 end

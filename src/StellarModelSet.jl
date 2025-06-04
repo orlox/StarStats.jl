@@ -44,7 +44,7 @@ function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_param
     # get value of quantity to interpolate at vertices at a given x
     yvalues::Vector{T} = zeros(T,length(grid.input_names)+1) # if data dimensions are N, interpolating simplex has N+1 points (eg triangle in 2D)
     for i in eachindex(indeces)
-        model = models[i]
+        model = models[indeces[i]]
         try
             yvalues[i] = get_secondary_EEP(x, model.df, interpolated_quantity)
         catch
