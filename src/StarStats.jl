@@ -5,4 +5,5 @@ include("SimulationData.jl")
 include("StellarModelGrid.jl")
 include("SimplexInterpolation.jl")
 include("StellarModelSet.jl")
+include("BrottLoader.jl")
 end # module
