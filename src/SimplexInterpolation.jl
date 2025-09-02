@@ -3,6 +3,7 @@ using StaticArrays
 using LinearAlgebra
 using Quickhull
 using StatsBase
+using Statistics
 
 """
     struct InterpSimplex
@@ -218,7 +219,14 @@ end
 Constructor for a `SimplexInterpolant` based on a set of `points`. `points` must be a matrix of dimensions ndims x npoints. 
 """
 function SimplexInterpolant(points; maxdepth=12)
-    tri = delaunay(points)
+    averages = mean(points, dims=2)
+    spans = maximum(points, dims=2) .- minimum(points, dims=2)
+    scaled_points = zeros(size(points)...)
+    # scale values to get a good triangulation
+    for i in 1:size(points)[2]
+        scaled_points[:,i] .= (points[:,i] .- averages)./spans
+    end
+    tri = delaunay(scaled_points)
     facets_eval = facets(tri)
     ndims = size(points,1)
     simplexes = []
