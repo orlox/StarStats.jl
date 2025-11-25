@@ -1,7 +1,7 @@
 name = "StarStats"
 uuid = "3d48db48-6773-11ed-1a7e-43a2532b2fa8"
-authors = ["Pablo Marchant", "Alina Istrate"]
 version = "0.15.0"
+authors = ["Pablo Marchant", "Alina Istrate"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -27,7 +27,7 @@ Quickhull = "0.2.1"
 StaticArrays = "1.9.13"
 Statistics = "1.11.1"
 StatsBase = "0.34.5"
-Turing = "0.35, 0.36, 0.40"
+Turing = "0.35, 0.36, 0.40, 0.41"
 julia = "1.8"
 
 [extras]
