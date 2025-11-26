@@ -250,6 +250,7 @@ end
 """
     function interpolation_info(point, si::SimplexInterpolant{N,P,LU,E}) where {N,P,LU,E}
 Iterate through all simplexes in the `SimplexInterpolant` `si` to find the simplex containing the given `point`. Returns the Barycentric coordinates of the point for the containing simplex and the indeces of the points that form the vertices of the simplex. If no simplex is found that contains the point zero values are returned for the indeces and coefficients.
+WE ALSO WANT TO RETURN I HERE
 """
 function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}) where {T,N,P,LU,E,V}
     coords = zeros(T,N+1)

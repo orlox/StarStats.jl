@@ -9,8 +9,9 @@ mutable struct StellarModelSet{N,P,LU,E,V}
     input_values::Matrix{Float64}
     simplex_interpolant::SimplexInterpolant{N,P,LU,E,V}
 end
+#Extra field to StellarModelSet a vector of booleans
 
-function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!; input_values = nothing)
+function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!; input_values = nothing)
     if isnothing(input_values)
         input_values = parse.(Float64, inputs)
     else
@@ -26,7 +27,7 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         for j in eachindex(input_names)
             strings[j] = inputs[j, i]
         end
-        models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
+        models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!)
     end
     simplex_interpolant = SimplexInterpolant(input_values)
     return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant)
