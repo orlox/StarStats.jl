@@ -5,6 +5,7 @@ StarStats.download_brott_data("brott_models"; type=:lmc)
 ##
 # code below can be used after the data has been downloaded
 using StarStats
+##
 model_set = StarStats.load_brott_data("brott_models", :lmc);
 
 ##

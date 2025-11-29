@@ -143,7 +143,7 @@ function EEPs_symbols!(df)
 end
 
 function check_number_EEPs(q, logP, model_set)
-    coords, indeces = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
+    coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
     
     number_of_eeps = []
 
@@ -164,56 +164,38 @@ end
 
 #INDEPENDENT OF DIMENSIONS REWTIE THIS FUNCTION!
 #NEW DATASET WITH DIFFERENT PRIMARY MASSES SO THAT IT WILL BE 3D IN PARAMETERS
+
 function check_coinside_EEPs_names(q, logP, model_set)
-    coords, indeces = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
-    marker, eeps_number = check_number_EEPs(q, logP, model_set)
-    model1 = []
-    model2 = []
-    model3 = []
+    coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
+
+    if coords[1] != 0
+        model1 = model_set.models[indeces[1]].EEPs_type
+    end
     all_good = 1
-    if marker == 1
-        if coords[1] != 0
-            global model1 = model_set.models[indeces[1]].EEPs_type
-        end
-        if coords[2] != 0
-            global model2 = model_set.models[indeces[2]].EEPs_type
-        end
-        if coords[3] != 0
-            global model3 = model_set.models[indeces[3]].EEPs_type
-        end
-    end
-
-    if (length(model1) != 0 ) .&& (length(model2) != 0)
-        for i in 1:length(model1)
-            if model1[i] == model2[i]
-                continue
-            else
-                println("EEPs names are different, intorpolations is not recommended")
-                println("model1 $(model1[i]) and model2 $(model2[i])")
-                all_good = 0
-                break
+    for i in 2:length(coords)
+        if coords[i] != 0
+            model_test = model_set.models[indeces[i]].EEPs_type
+            for k in 1:length(model_test)
+                if model1[k] == model_test[k]
+                    print(k," ",i, " ",1)
+                    continue
+                else
+                    println("EEPs names are different, intorpolations is not recommended")
+                    println("model1 $(model1[i]) and model $(k) $(model_test[i])")
+                    all_good = 0
+                    break
+                end
             end
+        else
+            "This track wasn't used for intepolation"
         end
     end
-
-    if (length(model2) != 0 ) .&& (length(model3) != 0)
-        for i in 1:length(model2)
-            if model2[i] == model3[i]
-                continue
-            else
-                println("EEPs names are different, intorpolations is not recommended")
-                println("model2 $(model2[i]) and model3 $(model3[i])")
-                all_good = 0
-                break
-            end
-        end
-    end
-    return all_good 
+    return all_good
 end
 
 ##
 
-model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,EEPs_symbols!);
+model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,names_of_EEPs_single_star!);
 
 ##
 x_min = 0.0

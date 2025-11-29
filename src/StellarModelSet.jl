@@ -8,6 +8,7 @@ mutable struct StellarModelSet{N,P,LU,E,V}
     input_names::Vector{Symbol}
     input_values::Matrix{Float64}
     simplex_interpolant::SimplexInterpolant{N,P,LU,E,V}
+    check_possibility_of_interpolation::Vector{Bool}
 end
 #Extra field to StellarModelSet a vector of booleans
 
@@ -30,12 +31,21 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!)
     end
     simplex_interpolant = SimplexInterpolant(input_values)
-    return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant)
+    all_good = 1
+    check_interpolation = Bool[]
+    for simplex in simplex_interpolant.simplexes
+        all_good = check_coords_of_simplex(simplex, models)
+        all_good = chaeck_names_of_EEPs(simplex, models)
+        push!(check_interpolation , all_good)
+        println(all_good, " ",simplex.id)
+    end
+
+    return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant, check_interpolation)
 end
 
 function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_parameters, interpolated_quantity, x::T) where{N,P,LU,E,V,T}
     models = grid.models
-    coords, indeces = interpolation_info(grid_parameters,grid.simplex_interpolant)
+    coords, indeces, simplex_id  = interpolation_info(grid_parameters,grid.simplex_interpolant)
 
     if maximum(coords)==0
         return NaN
