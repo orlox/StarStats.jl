@@ -53,3 +53,4 @@ function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_param
 
     return dot(coords, yvalues)
 end
+
