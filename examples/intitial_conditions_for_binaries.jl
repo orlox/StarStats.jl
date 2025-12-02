@@ -142,56 +142,11 @@ function EEPs_symbols!(df)
     return EEPs_names
 end
 
-function check_number_EEPs(q, logP, model_set)
-    coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
-    
-    number_of_eeps = []
 
-    for i in 1:length(coords)
-        if coords[i] == 0
-            continue
-        else
-            append!(number_of_eeps,length(model_set.models[indeces[i]].EEPs))
-        end
-    end
-
-    if Statistics.mean(number_of_eeps) != number_of_eeps[1]
-        return 0, Statistics.mean(number_of_eeps)
-    else
-        return 1, Statistics.mean(number_of_eeps)
-    end
-end
 
 #INDEPENDENT OF DIMENSIONS REWTIE THIS FUNCTION!
 #NEW DATASET WITH DIFFERENT PRIMARY MASSES SO THAT IT WILL BE 3D IN PARAMETERS
 
-function check_coinside_EEPs_names(q, logP, model_set)
-    coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
-
-    if coords[1] != 0
-        model1 = model_set.models[indeces[1]].EEPs_type
-    end
-    all_good = 1
-    for i in 2:length(coords)
-        if coords[i] != 0
-            model_test = model_set.models[indeces[i]].EEPs_type
-            for k in 1:length(model_test)
-                if model1[k] == model_test[k]
-                    print(k," ",i, " ",1)
-                    continue
-                else
-                    println("EEPs names are different, intorpolations is not recommended")
-                    println("model1 $(model1[i]) and model $(k) $(model_test[i])")
-                    all_good = 0
-                    break
-                end
-            end
-        else
-            "This track wasn't used for intepolation"
-        end
-    end
-    return all_good
-end
 
 ##
 
@@ -213,11 +168,13 @@ logLdata = donor.log_L
 #logP = 0.4875
 q = 0.86250
 logP = 0.46250
-marker, eeps_number = check_number_EEPs(q, logP, model_set)
-all_good = check_coinside_EEPs_names(q, logP, model_set)
+coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
+marker = model_set.check_possibility_of_interpolation[simplex_id]
+eeps_number =length(model_set.models[indeces[1]].EEPs_type)
 xvals = LinRange(x_min, eeps_number-1, 1000)
+
 ##
-if (marker == 1) .&&  (all_good ==1)
+if marker == 1
     logTeff = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logTeff, xvals)
     logL = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logL, xvals)
 
