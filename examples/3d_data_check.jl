@@ -9,7 +9,7 @@ include("../../../condor_outputs/identify_seveeral_overflows.jl")
 include("../../../condor_outputs/merge_files.jl")
 include("../../../condor_outputs/make_EEPs.jl")
 
-param_names = [:q, :logP]
+param_names = [:q, :logP, :logM1]
 
 function get_subfolders(path::String)
     items = readdir(path)
@@ -23,32 +23,35 @@ function get_subfolders(path::String)
     return subfolders
 end
 
-name_list = get_subfolders("../../condor_outputs/100models/results")
 
-path_constructor = x-> "../../condor_outputs/100models/results/$(x[1])_$(x[2])/LOGS1/history.data"
+name_list3d = get_subfolders("../../condor_outputs/3d_data/results")
+
+##
+
+path_consructor_3d = x-> "../../condor_outputs/3d_data/results/$(x[1])_$(x[2])_$(x[3])/LOGS1/history.data"
 
 
-inputs = Matrix{String}(undef,2, length(name_list))
-input_values = Matrix{Float64}(undef, 2, length(name_list))
+inputs = Matrix{String}(undef,3, length(name_list3d))
+input_values = Matrix{Float64}(undef, 3, length(name_list3d))
 
-for i in 1:length(name_list)
-    name = name_list[i]
-    mass_ratio_str, period_str = split(name,"_")
+for i in 1:length(name_list3d)
+    name = name_list3d[i]
+    mass_ratio_str, period_str, mass_pr_str = split(name,"_")
     mass_ratio = parse(Float64, mass_ratio_str)
     period = parse(Float64, period_str)
+    mass =  parse(Float64, mass_pr_str)
     inputs[1,i] = mass_ratio_str
     inputs[2,i] = period_str
+    inputs[3,i] =  mass_pr_str
     input_values[1,i] = mass_ratio
     input_values[2,i] = period
+    input_values[3,i] = mass
 end
-
 
 function binary_dataframe_loader(path)
 
-
     h_donor =  DataFrame(CSV.File(path, delim=" ", ignorerepeated=true, skipto=7, header=6))
-
-    
+ 
     for name in names(h_donor)
         if name == "log_Teff"
        
@@ -58,13 +61,10 @@ function binary_dataframe_loader(path)
             h_donor[!, :logL] = copy(h_donor.log_L)  # создаем колонку logL
         end
     end
-  
-    
- 
+
     return h_donor
 
 end
-
 
 function compute_distance_and_EEPs_binaries!(df::DataFrame)
 
@@ -142,67 +142,6 @@ function EEPs_symbols!(df)
     EEPs_names = Symbol.(EEPs_names)
     return EEPs_names
 end
-
 ##
 
-model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,EEPs_symbols!);
-
-##
-x_min = 0.0
-x_max = maximum([maximum(model.df.x[.!isnan.(model.df.x)]) for model in model_set.models])
-
-#x = ["0000.87500","0000.47500"]
-x = ["0000.86250","0000.46250"]
-
-p = "../../condor_outputs/100models/0000.86250_0000.46250/LOGS1/history.data"
-donor = DataFrame(CSV.File(p, delim=" ", ignorerepeated=true, skipto=7, header=6))
-logTdata = donor.log_Teff
-logLdata = donor.log_L
-
-#q = 0.875
-#logP = 0.4875
-q = 0.86250
-logP = 0.46250
-coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
-marker = model_set.check_possibility_of_interpolation[simplex_id]
-eeps_number =length(model_set.models[indeces[1]].EEPs_type)
-xvals = LinRange(x_min, eeps_number-1, 1000)
-
-##
-if marker == 1
-    logTeff = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logTeff, xvals)
-    logL = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logL, xvals)
-
-    f = Figure()
-    gl = GridLayout(f[1, 1])
-    ax = Axis(gl[1, 1],xlabel = "log T_eff", ylabel = "log L")
-    lines!(ax, logTeff, logL, linewidth=5, alpha=0.5, color = "blue", label="interpolated")
-    lines!(ax, logTdata,logLdata,linewidth=3,color = "orange", label="original")
-    legend = Legend(gl[1, 2], ax)
-    ax.xreversed[] = true
-    #save("HR_test.png", f)
-    f
-else
-    println("ERROR: number of EEPs in intorpolation curves are different")
-end
-
-
-##
-#=
-function visualize_simplex_interpolant(ax, si::StarStats.SimplexInterpolant{N,P,LU,E,V}) where {N,P,LU,E,V}
-    if size(si.points)[1] != 2
-        return
-    end
-    for simplex in si.simplexes
-        lines!(ax, [simplex.points[1,1], simplex.points[1,2], simplex.points[1,3], simplex.points[1,1]],
-                   [simplex.points[2,1], simplex.points[2,2], simplex.points[2,3], simplex.points[2,1]],
-                   linewidth=3)
-    end
-end
-
-fig = Figure()
-ax = Axis(fig[1,1], xlabel=L"\log_{10}\left(M_\mathrm{i}/M_\odot\right)", ylabel=L"v_\mathrm{rot,i}\;\mathrm{km\;s^{-1}}")
-visualize_simplex_interpolant(ax, model_set.simplex_interpolant)
-save("testing_simpl.png", fig)
-fig
-=#
+model_set = StellarModelSet(inputs, [:q, :logP, :logM1], path_consructor_3d, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,EEPs_symbols!);
