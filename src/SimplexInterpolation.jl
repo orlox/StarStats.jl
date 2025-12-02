@@ -26,13 +26,14 @@ struct InterpSimplex{N,P,LU,E}
     min_span::E
     barycenter::E
     point_indeces::Vector{Int}
+    id::Int
 end
 
 """
     function InterpSimplex(points)
 Construct a simplex based on the given `points`. `points` must be a matrix of dimensions ndims x npoints. 
 """
-function InterpSimplex(points::Matrix, point_indeces::Vector{Int})
+function InterpSimplex(points::Matrix, point_indeces::Vector{Int}, id::Int)
     ndims = size(points,1)
     npoints = size(points,2)
     if ndims != npoints -1
@@ -67,7 +68,7 @@ function InterpSimplex(points::Matrix, point_indeces::Vector{Int})
     barycenter = dropdims(sum(points,dims=2);dims=2)./npoints
     barycenter = SVector{ndims}(barycenter)
 
-    InterpSimplex{ndims, typeof(sv_points), typeof(A_lu), typeof(end_point)}(sv_points, A_lu, end_point, max_span, min_span, barycenter, point_indeces)
+    InterpSimplex{ndims, typeof(sv_points), typeof(A_lu), typeof(end_point)}(sv_points, A_lu, end_point, max_span, min_span, barycenter, point_indeces, id)
 end
 
 """
@@ -238,7 +239,8 @@ function SimplexInterpolant(points; maxdepth=12)
         end
         indeces_vec = zeros(Int, ndims+1)
         indeces_vec .= [indeces...]
-        push!(simplexes, InterpSimplex(simplex_points, indeces_vec)) #turn indeces from tuple to vector
+        #push!(simplexes, InterpSimplex(simplex_points, indeces_vec)) #turn indeces from tuple to vector
+        push!(simplexes, InterpSimplex(simplex_points, indeces_vec, i))
     end
     simplexes_typed::Vector{typeof(simplexes[1])} = [simplex for simplex in simplexes]
 
@@ -250,6 +252,7 @@ end
 """
     function interpolation_info(point, si::SimplexInterpolant{N,P,LU,E}) where {N,P,LU,E}
 Iterate through all simplexes in the `SimplexInterpolant` `si` to find the simplex containing the given `point`. Returns the Barycentric coordinates of the point for the containing simplex and the indeces of the points that form the vertices of the simplex. If no simplex is found that contains the point zero values are returned for the indeces and coefficients.
+WE ALSO WANT TO RETURN I HERE
 """
 function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}) where {T,N,P,LU,E,V}
     coords = zeros(T,N+1)
@@ -259,12 +262,12 @@ function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}
         simplex = simplexes[i]
         barycentric_coords!(point, simplex, coords, bcache)
         if minimum(coords) >= 0
-            return (coords, simplex.point_indeces)
+            return (coords, simplex.point_indeces,i)
         end
     end
     coords .= 0
     point_indeces = zeros(N+1)
-    return (coords, point_indeces) # will be zero if nothing was found
+    return (coords, point_indeces,0) # will be zero if nothing was found
 end
 
 """
