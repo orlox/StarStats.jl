@@ -185,7 +185,7 @@ if marker == 1
     lines!(ax, logTdata,logLdata,linewidth=3,color = "orange", label="original")
     legend = Legend(gl[1, 2], ax)
     ax.xreversed[] = true
-    save("HR_test.png", f)
+   # save("HR_test.png", f)
     f
 else
     println("ERROR: number of EEPs in intorpolation curves are different")
