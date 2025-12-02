@@ -195,7 +195,7 @@ end
 
 ##
 
-model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,names_of_EEPs_single_star!);
+model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,EEPs_symbols!);
 
 ##
 x_min = 0.0
