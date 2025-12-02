@@ -37,7 +37,7 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         all_good = check_coords_of_simplex(simplex, models)
         all_good = chaeck_names_of_EEPs(simplex, models)
         push!(check_interpolation , all_good)
-        println(all_good, " ",simplex.id)
+       # println(all_good, " ",simplex.id)
     end
 
     return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant, check_interpolation)
