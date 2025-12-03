@@ -12,7 +12,7 @@ mutable struct StellarModelSet{N,P,LU,E,V}
 end
 #Extra field to StellarModelSet a vector of booleans
 
-function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!; input_values = nothing)
+function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!; input_values = nothing) 
     if isnothing(input_values)
         input_values = parse.(Float64, inputs)
     else
@@ -28,21 +28,21 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         for j in eachindex(input_names)
             strings[j] = inputs[j, i]
         end
-        models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!)
+        models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
     end
     simplex_interpolant = SimplexInterpolant(input_values)
     all_good = 1
-    check_interpolation = Bool[]
+    check_interpolation = zeros(Bool,length(simplex_interpolant.simplexes))
+
     #if file already exists -> delete it
     if isfile("output.txt")
         rm("output.txt")  
     end
     for simplex in simplex_interpolant.simplexes
         all_good = check_coords_of_simplex(simplex, models)
-        all_good = chaeck_names_of_EEPs(simplex, models)
+        all_good = check_names_of_EEPs(simplex, models)
         coords_of_bad_symplex(all_good, simplex, models)
         push!(check_interpolation , all_good)
-       # println(all_good, " ",simplex.id)
     end
 
     return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant, check_interpolation)
@@ -71,11 +71,12 @@ function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_param
 end
 
 function coords_of_bad_symplex(all_good, simplex, models)
-    if all_good == 0
+    if all_good == 0 #0  means that interpolations is not possible in the symplex
         println(simplex.id, simplex.point_indeces)
         sorted_indexes = sort(simplex.point_indeces) #sort the array with indexes of models
         dist_max = sorted_indexes[2] - sorted_indexes[1]
         dict = [sorted_indexes[1], sorted_indexes[2]]
+        #calculate the largest edge
         for i in 1:length(sorted_indexes)
             for k in i+1:length(sorted_indexes)
                 dist_calc = sorted_indexes[k] - sorted_indexes[i]
@@ -85,9 +86,10 @@ function coords_of_bad_symplex(all_good, simplex, models)
                 end
             end
         end
-        println(dist_max, dict)
-        #println(models[dict[1]].input_params, models[dict[2]].input_params)
-       
+        #println(dist_max, dict)
+        #println(models[dict[1]].input_params, models[dict[2]].input_params
+
+        #The idea is to devide this edge into half and provide new parameters to calculated models
         open("output.txt", "a") do f
             for s in 1:length(models[dict[1]].input_params)
                 mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2

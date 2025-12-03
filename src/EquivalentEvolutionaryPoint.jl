@@ -182,7 +182,7 @@ function check_coords_of_simplex(simplex, models)
     return all_good
 end
 
-function chaeck_names_of_EEPs(simplex, models)
+function check_names_of_EEPs(simplex, models)
     barycenter = simplex.barycenter
     coords = barycentric_coords(barycenter, simplex)
     all_good = 1
