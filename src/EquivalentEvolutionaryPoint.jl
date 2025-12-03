@@ -6,6 +6,18 @@ function get_EEPs(track, Xc_TAMS)
     return get_EEPs_internal(track.c_h1, track.c_he4, size(track,1), Xc_TAMS)
 end
 
+function names_of_EEPs_single_star!(df)
+    names = []
+    push!(names,"ZAMS_EEP")
+    push!(names,"IAMS_EEP")
+    push!(names, "TAMS_EEP")
+    push!(names, "RGBTip_EEP")
+    push!(names,"ZACHeB_EEP" )
+    push!(names, "TACHeB_EEP ")
+    #println()
+    names_new = Symbol.(names)
+    return names_new
+end
 function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
     ZAMS_EEP = 0
     IAMS_EEP = 0
@@ -146,4 +158,52 @@ function get_secondary_EEP_internal(x::T, trackx, interp_values)::T where{T}
     #dirty check to not overflow at edge
     lower_i = min(searchsorted(trackx,x).stop, length(trackx)-1)
     return interp_values[lower_i] + (x-trackx[lower_i])/(trackx[lower_i+1]-trackx[lower_i])*(interp_values[lower_i+1]-interp_values[lower_i]) # interpolate in x
+end
+
+function check_coords_of_simplex(simplex, models)
+    barycenter = simplex.barycenter
+    coords = barycentric_coords(barycenter, simplex)
+    number_of_eeps = []
+    all_good = 1
+    for i in 1:length(coords)          
+        if coords[i] == 0
+            continue
+        else
+            append!(number_of_eeps,length(models[simplex.point_indeces[i]].EEPs))
+        end
+    end
+
+    if Statistics.mean(number_of_eeps) != number_of_eeps[1]
+        all_good = 0
+    else
+        all_good = 1
+    end
+
+    return all_good
+end
+
+function check_names_of_EEPs(simplex, models)
+    barycenter = simplex.barycenter
+    coords = barycentric_coords(barycenter, simplex)
+    all_good = 1
+    if coords[1] != 0
+        model1 = models[simplex.point_indeces[1]].EEPs_type
+    end
+    
+    for i in 2:length(coords)
+        if coords[i] != 0
+            model_test = models[simplex.point_indeces[i]].EEPs_type
+            for k in 1:length(model_test)
+                if model1[k] == model_test[k]
+                    continue
+                else
+                    println("EEPs names are different, intorpolations is not recommended")
+                    println("model1 $(model1[k]) and model $(i) $(model_test[k])")
+                    all_good = 0
+                    break
+                end
+            end
+        end
+    end
+    return all_good
 end
