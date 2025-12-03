@@ -4,10 +4,10 @@ using Random
 using CSV
 using DataFrames
 
-include("../../../condor_outputs/find_peaks.jl")
-include("../../../condor_outputs/identify_seveeral_overflows.jl")
-include("../../../condor_outputs/merge_files.jl")
-include("../../../condor_outputs/make_EEPs.jl")
+include("../codes_for_binary_data_analysis/find_peaks.jl")
+include("../codes_for_binary_data_analysis/identify_seveeral_overflows.jl")
+include("../codes_for_binary_data_analysis/merge_files.jl")
+include("../codes_for_binary_data_analysis/make_EEPs.jl")
 
 param_names = [:q, :logP]
 
@@ -81,6 +81,7 @@ function compute_distance_and_EEPs_binaries!(df::DataFrame)
 
     EEPs, EEPs_names = construct_EEPs_vector(left, right, df_overflows, h_donor)
     EEPs_int = convert(Vector{Int}, EEPs)
+    EEPs_names = Symbol.(EEPs_names)
     ########## Calculationg distance
     distance = zeros(size(df,1))
     delta_log_Teff = 0
@@ -125,27 +126,12 @@ function compute_distance_and_EEPs_binaries!(df::DataFrame)
     end
     df[!,:dtdx] = dtdx
 
-    return EEPs_int
-end
-
-function EEPs_symbols!(df)
-    h_donor = df
-    df1 = DataFrame(
-        time =  h_donor.star_age ,
-        signal =h_donor.thermal_eq_difference
-    )
-    smoothed_data = smooth_data(df1.signal, 20)
-    index_max, index_min= find_peacs_indexes(df1.time, log10.(smoothed_data))
-    left, right = find_edges_of_the_peak(index_max, index_min, log10.(smoothed_data), df1.time)
-    df_overflows = identify_overflow(h_donor)
-    EEPs, EEPs_names = construct_EEPs_vector(left, right, df_overflows, h_donor)
-    EEPs_names = Symbol.(EEPs_names)
-    return EEPs_names
+    return EEPs_int, EEPs_names         #this line added
 end
 
 ##
 
-model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!,EEPs_symbols!);
+model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!);
 
 ##
 x_min = 0.0

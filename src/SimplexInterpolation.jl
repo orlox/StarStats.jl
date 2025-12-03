@@ -261,8 +261,15 @@ function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}
     for i in eachindex(simplexes)
         simplex = simplexes[i]
         barycentric_coords!(point, simplex, coords, bcache)
-        if minimum(coords) >= 0
-            return (coords, simplex.point_indeces,i)
+        #if minimum(coords) >= 0
+        #    return (coords, simplex.point_indeces,i)
+        #end
+        original_index = findfirst(s -> s.id == simplex.id, si.simplexes)
+        if original_index !== nothing
+            return (coords, simplex.point_indeces, original_index)
+        else
+            # if wasnt found
+            return (coords, simplex.point_indeces, i)
         end
     end
     coords .= 0

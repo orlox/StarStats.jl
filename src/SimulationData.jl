@@ -12,14 +12,13 @@ end
 
 
 
-function SimulationData(input_strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!, EEPs_symbols!)
+function SimulationData(input_strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
     path = path_constructor(input_strings)
     if !(isfile(path) || isdir(path))
         error("Constructed path $(path) does not exist")
     end
     df = dataframe_loader(path)
-    EEPs = EEP_and_distance_calculator!(df)
-    symbols_of_eeps = EEPs_symbols!(df)
+    EEPs, symbols_of_eeps = EEP_and_distance_calculator!(df)
     return SimulationData(df, EEPs, symbols_of_eeps, input_strings, input_names)
 end
 
