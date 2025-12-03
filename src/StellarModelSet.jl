@@ -8,9 +8,11 @@ mutable struct StellarModelSet{N,P,LU,E,V}
     input_names::Vector{Symbol}
     input_values::Matrix{Float64}
     simplex_interpolant::SimplexInterpolant{N,P,LU,E,V}
+    check_possibility_of_interpolation::Vector{Bool}
 end
+#Extra field to StellarModelSet a vector of booleans
 
-function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!; input_values = nothing)
+function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!; input_values = nothing) 
     if isnothing(input_values)
         input_values = parse.(Float64, inputs)
     else
@@ -29,12 +31,26 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
     end
     simplex_interpolant = SimplexInterpolant(input_values)
-    return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant)
+    all_good = 1
+    check_interpolation = zeros(Bool,length(simplex_interpolant.simplexes))
+
+    #if file already exists -> delete it
+    if isfile("output.txt")
+        rm("output.txt")  
+    end
+    for simplex in simplex_interpolant.simplexes
+        all_good = check_coords_of_simplex(simplex, models)
+        all_good = check_names_of_EEPs(simplex, models)
+        coords_of_bad_symplex(all_good, simplex, models)
+        push!(check_interpolation , all_good)
+    end
+
+    return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant, check_interpolation)
 end
 
 function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_parameters, interpolated_quantity, x::T) where{N,P,LU,E,V,T}
     models = grid.models
-    coords, indeces = interpolation_info(grid_parameters,grid.simplex_interpolant)
+    coords, indeces, simplex_id  = interpolation_info(grid_parameters,grid.simplex_interpolant)
 
     if maximum(coords)==0
         return NaN
@@ -52,4 +68,37 @@ function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_param
     end
 
     return dot(coords, yvalues)
+end
+
+function coords_of_bad_symplex(all_good, simplex, models)
+    if all_good == 0 #0  means that interpolations is not possible in the symplex
+        println(simplex.id, simplex.point_indeces)
+        sorted_indexes = sort(simplex.point_indeces) #sort the array with indexes of models
+        dist_max = sorted_indexes[2] - sorted_indexes[1]
+        dict = [sorted_indexes[1], sorted_indexes[2]]
+        #calculate the largest edge
+        for i in 1:length(sorted_indexes)
+            for k in i+1:length(sorted_indexes)
+                dist_calc = sorted_indexes[k] - sorted_indexes[i]
+                if (dist_calc > dist_max)
+                    dist_max = sorted_indexes[k] - sorted_indexes[i]
+                    dict = [sorted_indexes[k],sorted_indexes[i]]
+                end
+            end
+        end
+        #println(dist_max, dict)
+        #println(models[dict[1]].input_params, models[dict[2]].input_params
+
+        #The idea is to devide this edge into half and provide new parameters to calculated models
+        open("output.txt", "a") do f
+            for s in 1:length(models[dict[1]].input_params)
+                mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
+                mean_param = round(mean_param, digits=5) 
+                write(f, string(mean_param), " ")
+            end
+            write(f, "\n")      
+        end  
+    end
+
+
 end
