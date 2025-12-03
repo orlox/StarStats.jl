@@ -33,9 +33,14 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
     simplex_interpolant = SimplexInterpolant(input_values)
     all_good = 1
     check_interpolation = Bool[]
+    #if file already exists -> delete it
+    if isfile("output.txt")
+        rm("output.txt")  
+    end
     for simplex in simplex_interpolant.simplexes
         all_good = check_coords_of_simplex(simplex, models)
         all_good = chaeck_names_of_EEPs(simplex, models)
+        coords_of_bad_symplex(all_good, simplex, models)
         push!(check_interpolation , all_good)
        # println(all_good, " ",simplex.id)
     end
@@ -63,4 +68,35 @@ function interpolate_grid_quantity(grid::StellarModelSet{N,P,LU,E,V}, grid_param
     end
 
     return dot(coords, yvalues)
+end
+
+function coords_of_bad_symplex(all_good, simplex, models)
+    if all_good == 0
+        println(simplex.id, simplex.point_indeces)
+        sorted_indexes = sort(simplex.point_indeces) #sort the array with indexes of models
+        dist_max = sorted_indexes[2] - sorted_indexes[1]
+        dict = [sorted_indexes[1], sorted_indexes[2]]
+        for i in 1:length(sorted_indexes)
+            for k in i+1:length(sorted_indexes)
+                dist_calc = sorted_indexes[k] - sorted_indexes[i]
+                if (dist_calc > dist_max)
+                    dist_max = sorted_indexes[k] - sorted_indexes[i]
+                    dict = [sorted_indexes[k],sorted_indexes[i]]
+                end
+            end
+        end
+        println(dist_max, dict)
+        #println(models[dict[1]].input_params, models[dict[2]].input_params)
+       
+        open("output.txt", "a") do f
+            for s in 1:length(models[dict[1]].input_params)
+                mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
+                mean_param = round(mean_param, digits=5) 
+                write(f, string(mean_param), " ")
+            end
+            write(f, "\n")      
+        end  
+    end
+
+
 end
