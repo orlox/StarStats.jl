@@ -1,7 +1,7 @@
 name = "StarStats"
 uuid = "3d48db48-6773-11ed-1a7e-43a2532b2fa8"
+version = "0.15.0"
 authors = ["Pablo Marchant", "Alina Istrate"]
-version = "0.13.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -12,6 +12,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 Quickhull = "baca2653-9c88-49d2-a488-12dbf25fc4fb"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
@@ -19,13 +20,14 @@ Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 CSV = "0.10"
 DataFrames = "1.4"
 FTPClient = "1.2.1"
-Interpolations = "0.14, 0.15"
+Interpolations = "0.14, 0.15, 0.16"
 LinearAlgebra = "1.11.0"
 QuadGK = "2.5"
 Quickhull = "0.2.1"
 StaticArrays = "1.9.13"
+Statistics = "1.11.1"
 StatsBase = "0.34.5"
-Turing = "0.35, 0.36"
+Turing = "0.35, 0.36, 0.40, 0.41"
 julia = "1.8"
 
 [extras]
