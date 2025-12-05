@@ -5,9 +5,12 @@ export mesa_dataframe_loader
 mutable struct SimulationData{A,B}
     df::DataFrame
     EEPs::Vector{Int}
+    EEP_names::Vector{Symbol}
     input_params::A
     input_names::B
 end
+
+
 
 function SimulationData(input_strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
     path = path_constructor(input_strings)
@@ -15,8 +18,8 @@ function SimulationData(input_strings, input_names, path_constructor, dataframe_
         error("Constructed path $(path) does not exist")
     end
     df = dataframe_loader(path)
-    EEPs = EEP_and_distance_calculator!(df)
-    return SimulationData(df, EEPs, input_strings, input_names)
+    EEPs, EEP_names = EEP_and_distance_calculator!(df)
+    return SimulationData(df, EEPs, EEP_names, input_strings, input_names)
 end
 
 """

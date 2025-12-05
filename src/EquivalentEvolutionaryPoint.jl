@@ -6,6 +6,15 @@ function get_EEPs(track, Xc_TAMS)
     return get_EEPs_internal(track.c_h1, track.c_he4, size(track,1), Xc_TAMS)
 end
 
+function names_of_EEPs_single_star!()
+    names = [:ZAMS,
+             :IAMS,
+             :TAMS,
+             :RGBTip,
+             :ZACHeB,
+             :TACHe]
+    return names
+end
 function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
     ZAMS_EEP = 0
     IAMS_EEP = 0
@@ -24,7 +33,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     if ZAMS_EEP == 0
-        return EEPs
+        return EEPs, names_of_EEPs_single_star!()
     end
     EEPs[1] = ZAMS_EEP
     # IAMS_EEP
@@ -35,7 +44,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     if IAMS_EEP == 0
-        return EEPs
+        return EEPs, names_of_EEPs_single_star!()
     end
     EEPs[2] = IAMS_EEP
     # TAMS_EEP
@@ -46,7 +55,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     if TAMS_EEP == 0
-        return EEPs
+        return EEPs, names_of_EEPs_single_star!()
     end
     EEPs[3] = TAMS_EEP
     # RGBTip_EEP
@@ -57,7 +66,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     if RGBTip_EEP == 0
-        return EEPs
+        return EEPs, names_of_EEPs_single_star!()
     end
     EEPs[4] = RGBTip_EEP
     # ZACHeB_EEP
@@ -68,7 +77,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     if ZACHeB_EEP == 0
-        return EEPs
+        return EEPs, names_of_EEPs_single_star!()
     end
     EEPs[5] = ZACHeB_EEP
     # TACHeB_EEP
@@ -79,7 +88,7 @@ function get_EEPs_internal(central_h1, central_he4, nrows, Xc_TAMS)
         end
     end
     EEPs[6] = TACHeB_EEP
-    return EEPs
+    return EEPs, names_of_EEPs_single_star!()
 end
 
 """
@@ -92,7 +101,7 @@ Function
 """
 function compute_distance_and_EEPs!(df::DataFrame; Xc_TAMS=1e-10)
 
-    EEPs = get_EEPs(df, Xc_TAMS)
+    EEPs, EEP_names = get_EEPs(df, Xc_TAMS)
 
     distance = zeros(size(df,1))
     delta_log_Teff = 0
@@ -136,7 +145,7 @@ function compute_distance_and_EEPs!(df::DataFrame; Xc_TAMS=1e-10)
     end
     df[!,:dtdx] = dtdx
 
-    return EEPs
+    return EEPs, EEP_names
 end
 
 function get_secondary_EEP(x::T, track, interpolated_quantity)::T where{T}
@@ -146,4 +155,35 @@ function get_secondary_EEP_internal(x::T, trackx, interp_values)::T where{T}
     #dirty check to not overflow at edge
     lower_i = min(searchsorted(trackx,x).stop, length(trackx)-1)
     return interp_values[lower_i] + (x-trackx[lower_i])/(trackx[lower_i+1]-trackx[lower_i])*(interp_values[lower_i+1]-interp_values[lower_i]) # interpolate in x
+end
+
+"""
+    check_names_of_EEPs(simplex, models)
+Checks the number of EEPs and their names. If any of these doesn't match it reurns 0 and doesn't reccomend interpolation.
+"""
+
+function check_names_of_EEPs(simplex, models)
+
+    all_good = 1
+    model_test1 = models[simplex.point_indeces[1]].EEP_names
+    length_test1 = length(model_test1)
+    for s in 2:length(simplex.point_indeces)
+        model_test2 = models[simplex.point_indeces[s]].EEP_names
+        length_test2 = length(model_test2)
+
+        if length_test1 == length_test2
+            for k in 1:length_test1
+                if model_test1[k] == model_test2[k]
+                    continue
+                else    
+                    all_good = 0
+                    break
+                end
+            end
+        else
+            all_good = 0
+            break
+        end
+    end
+    return all_good
 end
