@@ -5,7 +5,7 @@ export mesa_dataframe_loader
 mutable struct SimulationData{A,B}
     df::DataFrame
     EEPs::Vector{Int}
-    EEPs_type::Vector{Symbol}
+    EEP_names::Vector{Symbol}
     input_params::A
     input_names::B
 end

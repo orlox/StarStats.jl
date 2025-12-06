@@ -151,7 +151,7 @@ q = 0.86250
 logP = 0.46250
 coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
 marker = model_set.check_possibility_of_interpolation[simplex_id]
-eeps_number =length(model_set.models[indeces[1]].EEPs_type)
+eeps_number =length(model_set.models[indeces[1]].EEP_names)
 xvals = LinRange(x_min, eeps_number-1, 1000)
 
 ##

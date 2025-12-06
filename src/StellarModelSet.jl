@@ -22,8 +22,7 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
     end
     models = Vector{SimulationData}(undef,size(inputs)[2])
     # load up data
-    #@threads for i in 1:(size(inputs)[2])
-    for i in 1:(size(inputs)[2])
+    @threads for i in 1:(size(inputs)[2])
         strings = Vector{String}(undef, length(input_names))
         for j in eachindex(input_names)
             strings[j] = inputs[j, i]
@@ -33,14 +32,11 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
     simplex_interpolant = SimplexInterpolant(input_values)
     all_good = 1
     check_interpolation = zeros(Bool,length(simplex_interpolant.simplexes))
-    #if file already exists -> delete it
-    check_files_existing(simplex_interpolant, models) 
-
-    for simplex in simplex_interpolant.simplexes
-        #all_good = check_coords_of_simplex(simplex, models)
+   
+    for i in eachindex(simplex_interpolant.simplexes)
+        simplex = simplex_interpolant.simplexes[i]
         all_good = check_names_of_EEPs(simplex, models)
-        #coords_of_bad_symplex(all_good, simplex, models)
-        push!(check_interpolation , all_good)
+        check_interpolation[i] =  all_good
     end
 
     return StellarModelSet(models,inputs,input_names, input_values, simplex_interpolant, check_interpolation)
@@ -73,42 +69,43 @@ end
 If interpolation is not recommended in the current simplex it returnes a file with params for the simulations that needs to be run!
 """
 
-function coords_of_bad_symplex(all_good, simplex, models)
-    if all_good == 0 #0  means that interpolations is not possible in the symplex
-        println(simplex.id, simplex.point_indeces)
-        sorted_indexes = sort(simplex.point_indeces) #sorts the array with indexes of models
-        dist_max = sorted_indexes[2] - sorted_indexes[1]
-        dict = [sorted_indexes[1], sorted_indexes[2]]
-        #calculate the largest edge
-        for i in 1:length(sorted_indexes)
-            for k in i+1:length(sorted_indexes)
-                dist_calc = sorted_indexes[k] - sorted_indexes[i]
-                if (dist_calc > dist_max)
-                    dist_max = sorted_indexes[k] - sorted_indexes[i]
-                    dict = [sorted_indexes[k],sorted_indexes[i]]
+function suggest_new_simulations(model_set::StellarModelSet, file_name::String)
+    f = open(file_name, "a") 
+    models = model_set.models
+    for i in eachindex(model_set.simplex_interpolant.simplexes)
+        simplex = simplex_interpolant.simplexes[i]
+
+        if !simplex.can_interpolate_simplex  #0  means that interpolations is not possible in the symplex
+            sorted_indexes = sort(simplex.point_indeces) #sorts the array with indexes of models
+            dist_max = sorted_indexes[2] - sorted_indexes[1]
+            dict = [sorted_indexes[1], sorted_indexes[2]]
+            #calculate the largest edge
+            for i in 1:length(sorted_indexes)
+                for k in i+1:length(sorted_indexes)
+                    dist_calc = sorted_indexes[k] - sorted_indexes[i]
+                    if (dist_calc > dist_max)
+                        dist_max = sorted_indexes[k] - sorted_indexes[i]
+                        dict = [sorted_indexes[k],sorted_indexes[i]]
+                    end
                 end
             end
+                #The idea is to devide this edge into half and provide new parameters to calculated models  
+                for s in 1:length(models[dict[1]].input_params)
+                    mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
+                    mean_param = round(mean_param, digits=5) 
+                    write(f, string(mean_param), " ")
+                end
+                write(f, "\n")          
         end
-        #println(dist_max, dict)
-        #println(models[dict[1]].input_params, models[dict[2]].input_params
-
-        #The idea is to devide this edge into half and provide new parameters to calculated models
-        open("output.txt", "a") do f
-            for s in 1:length(models[dict[1]].input_params)
-                mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
-                mean_param = round(mean_param, digits=5) 
-                write(f, string(mean_param), " ")
-            end
-            write(f, "\n")      
-        end  
     end
+    close(f)
 end
 
 """
     check_files_existing(simplex_interpolant , models)
 checks the names of parameters which would be passed to run simmulations. Writes their names as strings to output file.
 """
-
+#=
 function check_files_existing(simplex_interpolant , models)
 
     simplex1 = simplex_interpolant.simplexes[1]
@@ -125,3 +122,4 @@ function check_files_existing(simplex_interpolant , models)
     end
 
 end
+=#

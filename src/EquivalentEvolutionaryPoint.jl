@@ -162,36 +162,27 @@ end
 Checks the number of EEPs and their names. If any of these doesn't match it reurns 0 and doesn't reccomend interpolation.
 """
 
-# no need to check everything agains everything
 function check_names_of_EEPs(simplex, models)
 
     all_good = 1
+    model_test1 = models[simplex.point_indeces[1]].EEP_names
+    length_test1 = length(model_test1)
+    for s in 2:length(simplex.point_indeces)
+        model_test2 = models[simplex.point_indeces[s]].EEP_names
+        length_test2 = length(model_test2)
 
-    for i in 1:length(simplex.point_indeces)
-        model_test1 = models[simplex.point_indeces[i]].EEPs_type
-        length_test1 = length(model_test1)
-        for s in i+1:length(simplex.point_indeces)
-            model_test2 = models[simplex.point_indeces[s]].EEPs_type
-            length_test2 = length(model_test2)
-
-            if length_test1 == length_test2
-                for k in 1:length_test1
-                    if model_test1[k] == model_test2[k]
-                        continue
-                    else
-                        println("EEPs names are differend, intorpolations is not recommended")
-                        println("model $(i) $(model_test1[k]) and model $(s) $(model_tes2[k])")
-                        
-                        all_good = 0
-                        break
-                    end
+        if length_test1 == length_test2
+            for k in 1:length_test1
+                if model_test1[k] == model_test2[k]
+                    continue
+                else    
+                    all_good = 0
+                    break
                 end
-            else
-                println("EEPs number is differend, intorpolations is not recommended")
-                println("model $(i) length $(length_test1) and model $(s) length $(length_test2)")
-                all_good = 0
-                break
             end
+        else
+            all_good = 0
+            break
         end
     end
     return all_good
