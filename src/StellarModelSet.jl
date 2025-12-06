@@ -73,9 +73,9 @@ function suggest_new_simulations(model_set::StellarModelSet, file_name::String)
     f = open(file_name, "a") 
     models = model_set.models
     for i in eachindex(model_set.simplex_interpolant.simplexes)
-        simplex = simplex_interpolant.simplexes[i]
+        simplex = model_set.simplex_interpolant.simplexes[i]
 
-        if !simplex.can_interpolate_simplex  #0  means that interpolations is not possible in the symplex
+        if !model_set.can_interpolate_simplex[i]  
             sorted_indexes = sort(simplex.point_indeces) #sorts the array with indexes of models
             dist_max = sorted_indexes[2] - sorted_indexes[1]
             dict = [sorted_indexes[1], sorted_indexes[2]]
@@ -90,12 +90,12 @@ function suggest_new_simulations(model_set::StellarModelSet, file_name::String)
                 end
             end
                 #The idea is to devide this edge into half and provide new parameters to calculated models  
-                for s in 1:length(models[dict[1]].input_params)
-                    mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
-                    mean_param = round(mean_param, digits=5) 
-                    write(f, string(mean_param), " ")
-                end
-                write(f, "\n")          
+            for s in 1:length(models[dict[1]].input_params)
+                mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
+                mean_param = round(mean_param, digits=5) 
+                write(f, string(mean_param), " ")
+            end
+            write(f, "\n")          
         end
     end
     close(f)

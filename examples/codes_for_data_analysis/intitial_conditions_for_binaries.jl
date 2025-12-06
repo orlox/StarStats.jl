@@ -132,7 +132,8 @@ end
 ##
 
 model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!);
-
+##
+StarStats.suggest_new_simulations(model_set, "output.txt")
 ##
 x_min = 0.0
 x_max = maximum([maximum(model.df.x[.!isnan.(model.df.x)]) for model in model_set.models])
