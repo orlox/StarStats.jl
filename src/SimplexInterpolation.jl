@@ -251,8 +251,7 @@ end
 
 """
     function interpolation_info(point, si::SimplexInterpolant{N,P,LU,E}) where {N,P,LU,E}
-Iterate through all simplexes in the `SimplexInterpolant` `si` to find the simplex containing the given `point`. Returns the Barycentric coordinates of the point for the containing simplex and the indeces of the points that form the vertices of the simplex. If no simplex is found that contains the point zero values are returned for the indeces and coefficients.
-WE ALSO WANT TO RETURN I HERE
+Iterate through all simplexes in the `SimplexInterpolant` `si` to find the simplex containing the given `point`. Returns the Barycentric coordinates of the point for the containing simplex, the indeces of the points that form the vertices of the simplex and the id of the simplex. If no simplex is found that contains the point zero values are returned for the indeces and coefficients.
 """
 function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}) where {T,N,P,LU,E,V}
     coords = zeros(T,N+1)
@@ -261,12 +260,8 @@ function interpolation_info(point::Vector{T}, si::SimplexInterpolant{N,P,LU,E,V}
     for i in eachindex(simplexes)
         simplex = simplexes[i]
         barycentric_coords!(point, simplex, coords, bcache)
-        #if minimum(coords) >= 0
-        #    return (coords, simplex.point_indeces,i)
-        #end
-        original_index = findfirst(s -> s.id == simplex.id, si.simplexes)
-        if original_index !== nothing
-            return (coords, simplex.point_indeces, original_index)
+        if minimum(coords) >= 0
+            return (coords, simplex.point_indeces, simplex.id)
         else
             # if wasnt found
             return (coords, simplex.point_indeces, i)

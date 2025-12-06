@@ -4,10 +4,10 @@ using Random
 using CSV
 using DataFrames
 
-include("codes_for_binary_data_analysis/find_peaks.jl")
-include("codes_for_binary_data_analysis/identify_seveeral_overflows.jl")
-include("codes_for_binary_data_analysis/merge_files.jl")
-include("codes_for_binary_data_analysis/make_EEPs.jl")
+include("find_peaks.jl")
+include("identify_seveeral_overflows.jl")
+include("merge_files.jl")
+include("make_EEPs.jl")
 
 param_names = [:q, :logP]
 
@@ -128,7 +128,7 @@ function compute_distance_and_EEPs_binaries!(df::DataFrame)
 
     return EEPs_int, EEPs_names         #this line added
 end
-
+ 
 ##
 
 model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!);

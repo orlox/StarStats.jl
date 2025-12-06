@@ -18,8 +18,8 @@ function SimulationData(input_strings, input_names, path_constructor, dataframe_
         error("Constructed path $(path) does not exist")
     end
     df = dataframe_loader(path)
-    EEPs, symbols_of_eeps = EEP_and_distance_calculator!(df)
-    return SimulationData(df, EEPs, symbols_of_eeps, input_strings, input_names)
+    EEPs, EEP_names = EEP_and_distance_calculator!(df)
+    return SimulationData(df, EEPs, EEP_names, input_strings, input_names)
 end
 
 """

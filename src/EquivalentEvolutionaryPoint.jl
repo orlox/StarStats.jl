@@ -160,48 +160,40 @@ function get_secondary_EEP_internal(x::T, trackx, interp_values)::T where{T}
     return interp_values[lower_i] + (x-trackx[lower_i])/(trackx[lower_i+1]-trackx[lower_i])*(interp_values[lower_i+1]-interp_values[lower_i]) # interpolate in x
 end
 
-function check_coords_of_simplex(simplex, models)
-    barycenter = simplex.barycenter
-    coords = barycentric_coords(barycenter, simplex)
-    number_of_eeps = []
-    all_good = 1
-    for i in 1:length(coords)          
-        if coords[i] == 0
-            continue
-        else
-            append!(number_of_eeps,length(models[simplex.point_indeces[i]].EEPs))
-        end
-    end
+"""
+    check_names_of_EEPs(simplex, models)
+Checks the number of EEPs and their names. If any of these doesn't match it reurns 0 and doesn't reccomend interpolation.
+"""
 
-    if Statistics.mean(number_of_eeps) != number_of_eeps[1]
-        all_good = 0
-    else
-        all_good = 1
-    end
-
-    return all_good
-end
-
+# no need to check everything agains everything
 function check_names_of_EEPs(simplex, models)
-    barycenter = simplex.barycenter
-    coords = barycentric_coords(barycenter, simplex)
+
     all_good = 1
-    if coords[1] != 0
-        model1 = models[simplex.point_indeces[1]].EEPs_type
-    end
-    
-    for i in 2:length(coords)
-        if coords[i] != 0
-            model_test = models[simplex.point_indeces[i]].EEPs_type
-            for k in 1:length(model_test)
-                if model1[k] == model_test[k]
-                    continue
-                else
-                    println("EEPs names are different, intorpolations is not recommended")
-                    println("model1 $(model1[k]) and model $(i) $(model_test[k])")
-                    all_good = 0
-                    break
+
+    for i in 1:length(simplex.point_indeces)
+        model_test1 = models[simplex.point_indeces[i]].EEPs_type
+        length_test1 = length(model_test1)
+        for s in i+1:length(simplex.point_indeces)
+            model_test2 = models[simplex.point_indeces[s]].EEPs_type
+            length_test2 = length(model_test2)
+
+            if length_test1 == length_test2
+                for k in 1:length_test1
+                    if model_test1[k] == model_test2[k]
+                        continue
+                    else
+                        println("EEPs names are differend, intorpolations is not recommended")
+                        println("model $(i) $(model_test1[k]) and model $(s) $(model_tes2[k])")
+                        
+                        all_good = 0
+                        break
+                    end
                 end
+            else
+                println("EEPs number is differend, intorpolations is not recommended")
+                println("model $(i) length $(length_test1) and model $(s) length $(length_test2)")
+                all_good = 0
+                break
             end
         end
     end
