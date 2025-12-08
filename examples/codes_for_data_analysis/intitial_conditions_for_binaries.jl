@@ -3,6 +3,8 @@ using CairoMakie
 using Random
 using CSV
 using DataFrames
+using CairoMakie
+import CairoMakie: scatter!
 
 include("find_peaks.jl")
 include("identify_seveeral_overflows.jl")
@@ -133,7 +135,10 @@ end
 
 model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!);
 ##
-StarStats.suggest_new_simulations(model_set, "output.txt")
+number_of_params, id_s, params_array = StarStats.suggest_new_simulations(model_set, "output.txt")
+
+##
+matrix_of_params = StarStats.params_for_simulations(number_of_params, params_array)
 ##
 x_min = 0.0
 x_max = maximum([maximum(model.df.x[.!isnan.(model.df.x)]) for model in model_set.models])
@@ -175,8 +180,8 @@ end
 
 
 ##
-#=
-function visualize_simplex_interpolant(ax, si::StarStats.SimplexInterpolant{N,P,LU,E,V}) where {N,P,LU,E,V}
+
+function visualize_simplex_interpolant(ax, si::StarStats.SimplexInterpolant{N,P,LU,E,V}, matrix_of_params) where {N,P,LU,E,V}
     if size(si.points)[1] != 2
         return
     end
@@ -185,11 +190,14 @@ function visualize_simplex_interpolant(ax, si::StarStats.SimplexInterpolant{N,P,
                    [simplex.points[2,1], simplex.points[2,2], simplex.points[2,3], simplex.points[2,1]],
                    linewidth=3)
     end
+
+    for i in 1:length(matrix_of_params[1,:])
+        scatter!(ax,matrix_of_params[1,i], matrix_of_params[2,i])
+    end
 end
 
 fig = Figure()
-ax = Axis(fig[1,1], xlabel=L"\log_{10}\left(M_\mathrm{i}/M_\odot\right)", ylabel=L"v_\mathrm{rot,i}\;\mathrm{km\;s^{-1}}")
-visualize_simplex_interpolant(ax, model_set.simplex_interpolant)
+ax = Axis(fig[1,1], xlabel="q", ylabel="logP")
+visualize_simplex_interpolant(ax, model_set.simplex_interpolant, matrix_of_params)
 save("testing_simpl.png", fig)
 fig
-=#

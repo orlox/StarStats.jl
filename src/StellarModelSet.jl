@@ -70,56 +70,87 @@ If interpolation is not recommended in the current simplex it returnes a file wi
 """
 
 function suggest_new_simulations(model_set::StellarModelSet, file_name::String)
+
+    if isfile(file_name)
+        rm(file_name)  
+    end
     f = open(file_name, "a") 
     models = model_set.models
+    names_1 = models[1].input_names
+    for i in 1:length(names_1)
+            write(f,names_1[i], " ")
+    end
+    write(f, "\n")  
+
+    params_array = []
+    id_s = []
     for i in eachindex(model_set.simplex_interpolant.simplexes)
         simplex = model_set.simplex_interpolant.simplexes[i]
 
         if !model_set.can_interpolate_simplex[i]  
-            sorted_indexes = sort(simplex.point_indeces) #sorts the array with indexes of models
-            dist_max = sorted_indexes[2] - sorted_indexes[1]
-            dict = [sorted_indexes[1], sorted_indexes[2]]
-            #calculate the largest edge
-            for i in 1:length(sorted_indexes)
-                for k in i+1:length(sorted_indexes)
-                    dist_calc = sorted_indexes[k] - sorted_indexes[i]
-                    if (dist_calc > dist_max)
-                        dist_max = sorted_indexes[k] - sorted_indexes[i]
-                        dict = [sorted_indexes[k],sorted_indexes[i]]
+            append!(id_s, simplex.id)
+            sum_sqrt = 0
+            dict = [simplex.point_indeces[1], simplex.point_indeces[2]]
+            for i in 1:length(models[1].input_params)
+                first = simplex.point_indeces[1]
+                second = simplex.point_indeces[2]
+                sum_sqrt  = sum_sqrt +sqrt((parse(Float64,models[first].input_params[i])-parse(Float64,models[second].input_params[i]))^2)
+            end
+            println(simplex.id," ", sum_sqrt, " ", 0000)
+            println(simplex.id, " ", dict)
+            for k in 1: length(simplex.point_indeces)
+                for s in k+1: length(simplex.point_indeces)
+                    sum_sqr_calc = 0
+                    for m in 1:length(models[1].input_params)
+                        k_th_model = simplex.point_indeces[k]
+                        s_th_model = simplex.point_indeces[s]
+                        sum_sqr_calc = sum_sqr_calc + sqrt((parse(Float64,models[k_th_model].input_params[m])-parse(Float64,models[s_th_model].input_params[m]))^2)
                     end
+                    println(simplex.id," ", sum_sqr_calc, " ", 1111)
+                    if sum_sqr_calc > sum_sqrt
+                        dict = [simplex.point_indeces[k], simplex.point_indeces[s]]
+                        sum_sqrt = sum_sqr_calc
+                    end
+                    println(simplex.id, " ", dict)
                 end
             end
-                #The idea is to devide this edge into half and provide new parameters to calculated models  
+            #The idea is to devide this edge into half and provide new parameters to calculated models  
             for s in 1:length(models[dict[1]].input_params)
                 mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
                 mean_param = round(mean_param, digits=5) 
+                append!(params_array, mean_param)
                 write(f, string(mean_param), " ")
             end
             write(f, "\n")          
         end
     end
     close(f)
+    number_of_params = length(models[1].input_params)
+    return number_of_params, id_s, params_array
 end
 
-"""
-    check_files_existing(simplex_interpolant , models)
-checks the names of parameters which would be passed to run simmulations. Writes their names as strings to output file.
-"""
-#=
-function check_files_existing(simplex_interpolant , models)
+ """   
+    params_for_simulations(number_of_params, params_array)
+    Independently of dimensions cunstracts a matrix with the paramenters for simulations to be run. This can be used for plotting 
+ """
 
-    simplex1 = simplex_interpolant.simplexes[1]
-    names = string.(models[simplex1.point_indeces[1]].input_names)
-    if isfile("output.txt")
-        rm("output.txt")  
-    end
+function params_for_simulations(number_of_params, params_array)
+    length_of_data = Integer(length(params_array)/number_of_params)
+    matrix_of_params = Matrix{Float64}(undef,number_of_params,length_of_data)
 
-    open("output.txt", "a") do f
-        for i in 1:length(names)
-            write(f,names[i], " ")
+    sch = 1
+    for i in 1:Integer(length(params_array)/number_of_params)
+        for k in 1:number_of_params
+            matrix_of_params[k,i] = params_array[sch+(k-1)]
         end
-        write(f, "\n")  
+        println(sch)
+        sch = sch+number_of_params
     end
 
+    return matrix_of_params
 end
-=#
+
+
+
+
+
