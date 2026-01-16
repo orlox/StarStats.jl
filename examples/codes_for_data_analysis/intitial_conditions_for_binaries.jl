@@ -10,6 +10,8 @@ include("find_peaks.jl")
 include("identify_seveeral_overflows.jl")
 include("merge_files.jl")
 include("make_EEPs.jl")
+include("verify_result.jl")
+include("Statistic.jl")
 
 param_names = [:q, :logP]
 
@@ -43,8 +45,6 @@ for i in 1:length(name_list)
     input_values[1,i] = mass_ratio
     input_values[2,i] = period
 end
-
-
 function binary_dataframe_loader(path)
 
 
@@ -130,74 +130,189 @@ function compute_distance_and_EEPs_binaries!(df::DataFrame)
 
     return EEPs_int, EEPs_names         #this line added
 end
- 
-##
-
-model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!);
-##
-number_of_params, id_s, params_array = StarStats.suggest_new_simulations(model_set, "output.txt")
 
 ##
-matrix_of_params = StarStats.params_for_simulations(number_of_params, params_array)
+metric = StarStats.EuclideanMetric()
 ##
-x_min = 0.0
-x_max = maximum([maximum(model.df.x[.!isnan.(model.df.x)]) for model in model_set.models])
-
-#x = ["0000.87500","0000.47500"]
-x = ["0000.86250","0000.46250"]
-
-p = "../../condor_outputs/100models/0000.86250_0000.46250/LOGS1/history.data"
-donor = DataFrame(CSV.File(p, delim=" ", ignorerepeated=true, skipto=7, header=6))
-logTdata = donor.log_Teff
-logLdata = donor.log_L
-
-#q = 0.875
-#logP = 0.4875
-q = 0.86250
-logP = 0.46250
-coords, indeces, simplex_id = StarStats.interpolation_info([q,logP],model_set.simplex_interpolant)
-marker = model_set.check_possibility_of_interpolation[simplex_id]
-eeps_number =length(model_set.models[indeces[1]].EEP_names)
-xvals = LinRange(x_min, eeps_number-1, 1000)
+model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!, metric);
 
 ##
-if marker == 1
-    logTeff = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logTeff, xvals)
-    logL = interpolate_grid_quantity.(Ref(model_set),Ref([q, logP]),:logL, xvals)
-
-    f = Figure()
-    gl = GridLayout(f[1, 1])
-    ax = Axis(gl[1, 1],xlabel = "log T_eff", ylabel = "log L")
-    lines!(ax, logTeff, logL, linewidth=5, alpha=0.5, color = "blue", label="interpolated")
-    lines!(ax, logTdata,logLdata,linewidth=3,color = "orange", label="original")
-    legend = Legend(gl[1, 2], ax)
-    ax.xreversed[] = true
-    #save("HR_test.png", f)
-    f
-else
-    println("ERROR: number of EEPs in intorpolation curves are different")
-end
-
-
+number_of_params, id_s, matrix_of_params = StarStats.suggest_new_simulations(model_set, "output.txt")
+##
+#If you want ot verify the bad simplexes
+verify_simplexes(model_set)
+##
+df,evol_colors = array_of_colors(model_set)
+##
+matrix_of_params_for_ref, id_s_for_ref  = suggest_refinment(model_set)
 ##
 
-function visualize_simplex_interpolant(ax, si::StarStats.SimplexInterpolant{N,P,LU,E,V}, matrix_of_params) where {N,P,LU,E,V}
+function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInterpolant{N,P,LU,E,V}, matrix_of_params, matrix_of_params_for_ref) where {N,P,LU,E,V}
     if size(si.points)[1] != 2
         return
     end
-    for simplex in si.simplexes
-        lines!(ax, [simplex.points[1,1], simplex.points[1,2], simplex.points[1,3], simplex.points[1,1]],
-                   [simplex.points[2,1], simplex.points[2,2], simplex.points[2,3], simplex.points[2,1]],
-                   linewidth=3)
+    for i in eachindex(model_set.simplex_interpolant.simplexes)
+        simplex = model_set.simplex_interpolant.simplexes[i]
+        
+        if model_set.can_interpolate_simplex[i] == 1
+            lines!(ax, [simplex.points[1,1], simplex.points[1,2], simplex.points[1,3], simplex.points[1,1]],
+                [simplex.points[2,1], simplex.points[2,2], simplex.points[2,3], simplex.points[2,1]],
+                linewidth=3, color = "green")
+        else
+            lines!(ax, [simplex.points[1,1], simplex.points[1,2], simplex.points[1,3], simplex.points[1,1]],
+                [simplex.points[2,1], simplex.points[2,2], simplex.points[2,3], simplex.points[2,1]],
+                linewidth=3, color = "black")
+        end
     end
 
+    #This is for bad simplexes
     for i in 1:length(matrix_of_params[1,:])
-        scatter!(ax,matrix_of_params[1,i], matrix_of_params[2,i])
+        scatter!(ax,matrix_of_params[1,i], matrix_of_params[2,i], color = "blue", markersize=7)
+    end
+    #This is for extra refinment
+    for m in 1:length(matrix_of_params_for_ref[1,:])
+        scatter!(ax,matrix_of_params_for_ref[1,m], matrix_of_params_for_ref[2,m], color = "pink", markersize=7)
+    end
+
+    for i in 1:length(df.simplex_id)
+        for k in 1:length(df.submodel_id[1])
+            coord1 = parse(Float64, model_set.models[df.submodel_id[i][k]].input_params[1])
+            coord2 = parse(Float64, model_set.models[df.submodel_id[i][k]].input_params[2])
+            color_model = df.color_of_model[i][k]
+            scatter!(coord1,coord2,color = color_model)
+        end
+    end
+    
+end
+
+##
+fig = Figure()
+ax = Axis(fig[1,1], xlabel="q", ylabel="logP")
+visualize_simplex_interpolant(ax, model_set, model_set.simplex_interpolant, matrix_of_params, matrix_of_params_for_ref)
+labels = ["different_evol","different_evol","different_evol", "extra refinment", "bad interpolation"]
+my_colors = evol_colors
+
+append!(my_colors, ["pink"])
+append!(my_colors, ["blue"])
+
+leg = Legend(fig[1, 2],
+    [PolyElement(color=color) for color in my_colors],
+    labels,
+    valign=:center,  # вертикальное выравнивание по центру
+    patchsize=(30, 20),
+    labelsize=12
+)
+save("testing_simpl.png", fig)
+fig
+
+##
+#HERE IS JUST A BARPLOT TO HAVE SOME SENCE OF DATASET
+
+matrix_total_for_statistic, matrix_total_for_statistic_point_to_point = statistics_for_dataset(model_set)
+upper_outlier, upper_outlier_point_to_point  = precompute_data_for_extra_refinment(model_set)
+fig = Figure()
+ax = Axis(fig[1, 1], title="Hist of differences", xlabel="EEPs", ylabel="differences")    
+barplot!(ax, 2, maximum(matrix_total_for_statistic), color=:blue, strokecolor=:black, strokewidth=1, alpha = 0.5)
+barplot!(ax, 4, maximum(matrix_total_for_statistic_point_to_point), color=:red, strokecolor=:black, strokewidth=1, alpha = 0.5)
+scatter!(ax, 2, median(matrix_total_for_statistic), color=:red, strokecolor=:black, strokewidth=1, alpha = 0.5)
+scatter!(ax, 4, median(matrix_total_for_statistic_point_to_point), color=:red, strokecolor=:black, strokewidth=1, alpha = 0.5)
+hlines!(ax, upper_outlier, color=:blue,linewidth=1)
+hlines!(ax, upper_outlier_point_to_point, color=:red,linewidth=1)
+
+
+my_colors  = [ "blue", "red"]
+labels = ["difference of length","distance EEPs"]
+leg = Legend(fig[1, 2],
+    [PolyElement(color=color) for color in my_colors],
+    labels,
+    valign=:center,  # вертикальное выравнивание по центру
+    patchsize=(30, 20),
+    labelsize=12
+)
+
+fig
+save("2methods.png", fig) 
+##
+#########JUST A FEW TESTS ON EXTRA refinment
+upper_outlier, upper_outlier_point_to_point  = precompute_data_for_extra_refinment(model_set)
+
+array_of_models_for_ref_1 = []
+array_of_models_for_ref_2 = []
+array_of_differences_1 = []
+array_of_differences_2 = []
+for i in eachindex(model_set.simplex_interpolant.simplexes)
+    if model_set.can_interpolate_simplex[i] == 1
+        simplex = model_set.simplex_interpolant.simplexes[i]
+        models = model_set.models
+        df = StarStats.length_between_EEPs(simplex, models, model_set.metric)
+        df_new = filter_data(df,upper_outlier,upper_outlier_point_to_point)
+        for m in 1:length(df_new.extra_refinment_flag)
+            if df_new.extra_refinment_flag[m] == 1
+                model_1 = df_new.model_pair[m][1]
+                model_2 = df_new.model_pair[m][2]
+                append!(array_of_models_for_ref_1 , model_1)
+                append!(array_of_models_for_ref_2 , model_2)
+                append!(array_of_differences_1, df_new.difference[m])
+                append!(array_of_differences_2, df_new.distance_between_eeps[m])
+
+            end
+        end
     end
 end
 
+index_max_1 = argmax(array_of_differences_1)
+index_max_2 = argmax(array_of_differences_2)
+println(index_max_1)
+println(index_max_2)
+
+logT1 = model_set.models[array_of_models_for_ref_1[5]].df.log_Teff
+logL1 = model_set.models[array_of_models_for_ref_1[5]].df.logL
+logT2 = model_set.models[array_of_models_for_ref_2[5]].df.log_Teff
+logL2 = model_set.models[array_of_models_for_ref_2[5]].df.logL
+
+fig = Figure()
+ax = Axis(fig[1,1], xlabel="logT", ylabel="logL")
+
+lines!(logT1, logL1)
+lines!(logT2, logL2)
+
+ax.xreversed = true
+fig
+
+##
+#EXTRA TEST WITH BROTT MODELS
+
+# code below can be used after the data has been downloaded
+
+model_set_brott = StarStats.load_brott_data("brott_models", metric, :lmc);
+##
+
+number_of_params_brott, id_s_brott, matrix_of_params_brott = StarStats.suggest_new_simulations(model_set_brott, "output.txt")
+
+#If you want ot verify the bad simplexes
+verify_simplexes(model_set_brott)
+
+df_brott,evol_colors_brott = array_of_colors(model_set_brott)
+
+matrix_of_params_for_ref_brott, id_s_for_ref_brott  = suggest_refinment(model_set_brott)
+
 fig = Figure()
 ax = Axis(fig[1,1], xlabel="q", ylabel="logP")
-visualize_simplex_interpolant(ax, model_set.simplex_interpolant, matrix_of_params)
+visualize_simplex_interpolant(ax, model_set_brott, model_set_brott.simplex_interpolant, matrix_of_params_brott, matrix_of_params_for_ref_brott)
+labels = ["different_evol","different_evol","different_evol", "extra refinment", "bad interpolation"]
+my_colors = evol_colors_brott
+
+append!(my_colors, ["pink"])
+append!(my_colors, ["blue"])
+
+#=
+leg = Legend(fig[1, 2],
+    [PolyElement(color=color) for color in my_colors],
+    labels,
+    valign=:center,  # вертикальное выравнивание по центру
+    patchsize=(30, 20),
+    labelsize=12
+)
 save("testing_simpl.png", fig)
+=#
 fig

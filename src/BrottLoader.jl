@@ -46,7 +46,7 @@ function brott_dataframe_loader(path)
     return df
 end
 
-function load_brott_data(folder_name, type; Xc_TAMS=1e-6)
+function load_brott_data(folder_name, metric, type; Xc_TAMS=1e-6)
     # linear interpolation works better with logM
     input_names = [:logM, :vrot]
     file_names = readdir(folder_name)
@@ -83,5 +83,7 @@ function load_brott_data(folder_name, type; Xc_TAMS=1e-6)
 
     path_constructor = x->brott_path_constructor(x, folder_name, filter)
     my_EEP_and_distance_calculator! = (df)->compute_distance_and_EEPs!(df; Xc_TAMS=Xc_TAMS)
-    return StellarModelSet(inputs,input_names, path_constructor, brott_dataframe_loader, my_EEP_and_distance_calculator!; input_values=input_values);
+    #deleted the line ; input_values=input_values cause it made something strange with values
+    return StellarModelSet(inputs,input_names, path_constructor, brott_dataframe_loader, my_EEP_and_distance_calculator!, metric);
 end
+

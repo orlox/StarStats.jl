@@ -31,7 +31,8 @@ function verify_simplexes(model_set::StellarModelSet)
 
 end
 
-function make_huge_vector_of_eeps(model_se::StellarModelSet)
+#function used to make vector of all eeps used for coloring array
+function make_huge_vector_of_eeps(model_set::StellarModelSet)
 
     huge_vector_of_eeps = []
     for i in eachindex(model_set.simplex_interpolant.simplexes)
@@ -42,13 +43,13 @@ function make_huge_vector_of_eeps(model_se::StellarModelSet)
             push!(huge_vector_of_eeps, k_th_EEPS)
         end
     end
-    markers = unique(huge_vector_of_eeps)
+    markers = unique(huge_vector_of_eeps) # identifies how many unique evolution behaviers there are
     
     return markers
 
 end
 
-
+#this fuction give diffrent colors for different evolutions
 function array_of_colors(model_set::StellarModelSet)
     color_list = ["cyan","red","yellow","orange","pink","brown","gray","white","magenta",
     "violet","indigo","gold","silver","maroon","olive","navy","teal","coral","lavender"]

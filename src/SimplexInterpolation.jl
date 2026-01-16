@@ -240,7 +240,12 @@ function SimplexInterpolant(points; maxdepth=12)
         indeces_vec = zeros(Int, ndims+1)
         indeces_vec .= [indeces...]
         #push!(simplexes, InterpSimplex(simplex_points, indeces_vec)) #turn indeces from tuple to vector
-        push!(simplexes, InterpSimplex(simplex_points, indeces_vec, i))
+        #push!(simplexes, InterpSimplex(simplex_points, indeces_vec, i))
+        try
+            push!(simplexes, InterpSimplex(simplex_points, indeces_vec, i))
+        catch e
+            println("Error when creating simplex with points $(simplex_points)")
+        end
     end
     simplexes_typed::Vector{typeof(simplexes[1])} = [simplex for simplex in simplexes]
 
