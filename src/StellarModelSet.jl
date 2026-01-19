@@ -2,14 +2,14 @@ using Base.Threads, LinearAlgebra
 
 export StellarModelSet, interpolate_grid_quantity
 
-mutable struct StellarModelSet{N,P,LU,E,V}
+mutable struct StellarModelSet{N,P,LU,E,V,METRIC}
     models::Vector{SimulationData}
     inputs::Matrix{String}
     input_names::Vector{Symbol}
     input_values::Matrix{Float64}
     simplex_interpolant::SimplexInterpolant{N,P,LU,E,V}
     can_interpolate_simplex::Vector{Bool}
-    metric
+    metric::METRIC
 end
 #Extra field to StellarModelSet a vector of booleans
 
@@ -31,7 +31,7 @@ function StellarModelSet(inputs, input_names, path_constructor, dataframe_loader
         end
         
         models[i] = SimulationData(strings, input_names, path_constructor, dataframe_loader, EEP_and_distance_calculator!)
-        make_distance_along_curve(models[i], metric)
+        distance_along_curve!(models[i], metric)
     end
     simplex_interpolant = SimplexInterpolant(input_values)
     all_good = 1
@@ -72,55 +72,69 @@ end
     coords_of_bad_symplex(all_good, simplex, models)
 If interpolation is not recommended in the current simplex it returnes a file with params for the simulations that needs to be run!
 """
+#refine_model_set_working_interpolation
+function refine_model_set_failed_interpolation(model_set::StellarModelSet)#, file_name::String)
+    ##delete file if one already exists in the directory
+    #if isfile(file_name)
+    #    rm(file_name)  
+    #end
+    #f = open(file_name, "a") 
 
-function suggest_new_simulations(model_set::StellarModelSet, file_name::String)
-    #delete file if one already exists in the directory
-    if isfile(file_name)
-        rm(file_name)  
-    end
-    f = open(file_name, "a") 
+    ##create modelset 
+    #models = model_set.models
+    #names = model_set.input_names
+    ##write parameter names in the file
+    #for i in 1:length(names)
+    #        write(f,names[i], " ")
+    #end
+    #write(f, "\n")
 
-    #create modelset 
-    models = model_set.models
-    names_1 = models[1].input_names
-    #write parameter names in the file
-    for i in 1:length(names_1)
-            write(f,names_1[i], " ")
+    suggested_sims = Dict()
+    for input_param in model_set.input_params
+        suggested_sims[input_param] = zeros(Float64, 0)
     end
-    write(f, "\n")  
+    suggested_sims[:distance] = zeros(Float64, 0)
+    suggested_sims[:simplex_id] = zeros(Int, 0)
 
     #create arrays to return
-    params_array = []
-    id_s = []
     for i in eachindex(model_set.simplex_interpolant.simplexes)
         simplex = model_set.simplex_interpolant.simplexes[i]
         if !model_set.can_interpolate_simplex[i]  
-            append!(id_s, simplex.id)
-            dict  = calculate_longest_edge(models, simplex)
+            append!(suggested_sims[simplex_id], simplex.id)
+            model_ids, dist = calculate_longest_edge(models, simplex) #TODO
         
             #The idea is to devide this edge into half and provide new parameters to calculated models  
-            for s in 1:length(models[dict[1]].input_params)
-                mean_param = (parse(Float64,models[dict[1]].input_params[s])+parse(Float64,models[dict[2]].input_params[s]))/2
-                mean_param = round(mean_param, digits=5) 
-                append!(params_array, mean_param)  
+            for s in 1:length(model_set.input_params)
+                mean_param = (parse(Float64,models[models_ids[1]].input_params[s])+parse(Float64,models[model_ids[2]].input_params[s]))/2
+                append!(suggested_sims[model_set.input_params[s]], mean_param)  
             end
-            
+            append!(suggested_sims[:distance], dist)
         end
     end
-    
-    number_of_params = length(models[1].input_params)
-    matrix_of_params = params_for_simulations(number_of_params, params_array) #make a matrix with data instead of arrays
-    matrix_of_params_uniq,id_s_uniq = delete_same_models_2D(matrix_of_params,id_s) #delete same elements
-    number_of_params_uniq = length(id_s_uniq)
 
-    for i in 1:length(matrix_of_params_uniq[1,:])
-        write(f, string(matrix_of_params_uniq[1,i]), " ",string(matrix_of_params_uniq[2,i]))
-        write(f, "\n")          
+    new_params = [[suggested_sims[name][i] for name in model_set.input_names] for i in 1:length(suggested_sims[:simplex_id])]
+    unique_filter = unique(i -> new_params[i], 1:length(new_params))
+
+    for input_param in model_set.input_params
+        suggested_sims[input_param] = suggested_sims[input_param][unique_filter]
     end
-    close(f)
-    return number_of_params_uniq, id_s_uniq, matrix_of_params_uniq
-end
+    suggested_sims[:distance] = suggested_sims[:distance][unique_filter]
+    suggested_sims[:simplex_id] = suggested_sims[:simplex_id][unique_filter]
 
+    return suggested_sims
+    
+    #number_of_params = length(models[1].input_params)
+    #matrix_of_params = params_for_simulations(number_of_params, params_array) #make a matrix with data instead of arrays
+    #matrix_of_params_uniq,id_s_uniq = delete_same_models_2D(matrix_of_params,id_s) #delete same elements
+    #number_of_params_uniq = length(id_s_uniq)
+
+    #for i in 1:length(matrix_of_params_uniq[1,:])
+    #    write(f, string(matrix_of_params_uniq[1,i]), " ",string(matrix_of_params_uniq[2,i]))
+    #    write(f, "\n")          
+    #end
+    #close(f)
+    #return number_of_params_uniq, id_s_uniq, matrix_of_params_uniq
+end
 
  """   
     params_for_simulations(number_of_params, params_array)
@@ -128,14 +142,8 @@ end
  """
 
 function calculate_longest_edge(models, simplex)
-    sum_sqrt = 0
-    dict = [simplex.point_indeces[1], simplex.point_indeces[2]]
-    #calculate the 1st edge of simplex
-    for i in 1:length(models[1].input_params)
-        first = simplex.point_indeces[1]
-        second = simplex.point_indeces[2]
-        sum_sqrt  = sum_sqrt +sqrt((parse(Float64,models[first].input_params[i])-parse(Float64,models[second].input_params[i]))^2)
-    end
+    max_distance = -1
+    # TODO: add squared values, take sqrt after
     #calculate other edges and compare 
     for k in 1: length(simplex.point_indeces)
         for s in k+1: length(simplex.point_indeces)
@@ -146,59 +154,14 @@ function calculate_longest_edge(models, simplex)
                 s_th_model = simplex.point_indeces[s]
                 sum_sqr_calc = sum_sqr_calc + sqrt((parse(Float64,models[k_th_model].input_params[m])-parse(Float64,models[s_th_model].input_params[m]))^2)
             end
-            if sum_sqr_calc > sum_sqrt
-                dict = [simplex.point_indeces[k], simplex.point_indeces[s]]
-                sum_sqrt = sum_sqr_calc
+            if max_distance == -1 && sum_sqr_calc > max_distance
+                model_ids = [simplex.point_indeces[k], simplex.point_indeces[s]]
+                max_distance = sum_sqr_calc
             end
         end
     end
-    return dict
+    return model_ids, max_distance
 end
-#Function used for suggesting new simulations
-#IS IT MULIDIMENSIONAL
-function params_for_simulations(number_of_params, params_array)
-    length_of_data = Integer(length(params_array)/number_of_params)
-    matrix_of_params = Matrix{Float64}(undef,number_of_params,length_of_data)
-
-    sch = 1
-    for i in 1:Integer(length(params_array)/number_of_params)
-        for k in 1:number_of_params
-            matrix_of_params[k,i] = params_array[sch+(k-1)]
-        end
-        sch = sch+number_of_params
-    end
-
-    return matrix_of_params
-end
-#function used for suggesting new simulations
-function delete_same_models_2D(matrix_of_params,id_s)
-    arr1 = []
-    arr2 = []
-    arr3 = []
-   
-    for i in 1:length(matrix_of_params[1,:])
-        a = 0
-        for k in i+1:length(matrix_of_params[1,:])
-            if (matrix_of_params[1,i] == matrix_of_params[1,k] ) .&& (matrix_of_params[2,i] == matrix_of_params[2,k] )
-                a = 1 # marker of coindsiding paors
-            end
-        end
-        if a == 0
-            append!(arr1, matrix_of_params[1,i])
-            append!(arr2, matrix_of_params[2,i])
-            append!(arr3, id_s[i])
-        end
-    end
-    number_of_params = 2
-    length_of_data = length(arr1)
-    matrix_of_params_new = Matrix{Float64}(undef,number_of_params,length_of_data)
-    matrix_of_params_new[1,:] = arr1
-    matrix_of_params_new[2,:] = arr2
-    id_s_new = arr3
-    return matrix_of_params_new,id_s_new
-
-end
-
 
 #function used for statistics and refinment
 #returns df with the largest difference between distance between 2eeps on 2 tracs for 2 models, 
@@ -235,11 +198,8 @@ function length_between_EEPs(simplex, models, metric)
                     temp_array[m] = abs(k_th_model_dist - s_th_model_dist ) # abs because we dont know which has longer dist between eeps
                     # Here we calcaulte distance between EEPs in 2 curves
                     #p1(Tk,Lk) (kth model), p2(Ts, Ls) (sth model)
-                    point1 = (models[k_th_model].df.logTeff[EEP_k_index], models[k_th_model].df.logL[EEP_k_index])
-                    point2 = (models[s_th_model].df.logTeff[EEP_s_index], models[s_th_model].df.logL[EEP_s_index])
-                    pp = PointPair2(point1, point2, metric)
-                    
-                    temp_array2[m] = distance_point_pair(pp)    
+
+                    temp_array2[m] = dist(models[k_th_model], models[s_th_model], EEP_k_index, EEP_s_index, metric)
                 end
 
             end
@@ -250,11 +210,7 @@ function length_between_EEPs(simplex, models, metric)
             
             #Broat loader check
             if (EEP_k_end != 0) && (EEP_s_end != 0)
-
-                point1 = (models[k_th_model].df.logTeff[EEP_k_end], models[k_th_model].df.logL[EEP_k_end])
-                point2 = (models[s_th_model].df.logTeff[EEP_s_end], models[s_th_model].df.logL[EEP_s_end])
-                pp = PointPair2(point1, point2, metric)
-                temp_array2[end] = distance_point_pair(pp) 
+                temp_array2[end] = dist(models[k_th_model], models[s_th_model], EEP_k_end, EEP_s_end, metric)
             end
 
 
