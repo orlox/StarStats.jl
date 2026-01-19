@@ -13,7 +13,7 @@ function dist(sim1::SimulationData, sim2::SimulationData, index1, index2, metric
     return sqrt((logTeff1-logTeff2)^2 + (logL1-logL2)^2)
 end
 
-function distance_along_curve!(model:SimulationData, metric<:AbstractMetric)
+function distance_along_curve!(model::SimulationData, metric<:AbstractMetric)
     distance = zeros(size(model.df,1))
 
     for i in 2:size(model.df,1)
