@@ -5,19 +5,19 @@ struct EuclideanMetric <: AbstractMetric
 end
 
 function dist(sim1::SimulationData, sim2::SimulationData, index1, index2, metric::EuclideanMetric)
-    logTeff1 = sim1.df[:logTeff,index1]
-    logTeff2 = sim2.df[:logTeff,index2]
-    logL1 = sim1.df[:logL,index1]
-    logL2 = sim2.df[:logL,index2]
+    logTeff1 = sim1.df.logTeff[index1]
+    logTeff2 = sim2.df.logTeff[index2]
+    logL1 = sim1.df.logL[index1]
+    logL2 = sim2.df.logL[index2]
 
     return sqrt((logTeff1-logTeff2)^2 + (logL1-logL2)^2)
 end
 
-function distance_along_curve!(model::SimulationData, metric<:AbstractMetric)
+function distance_along_curve!(model::SimulationData, metric::METRIC) where{METRIC<:AbstractMetric}
     distance = zeros(size(model.df,1))
 
     for i in 2:size(model.df,1)
-        distance[i] = distance[i-1] + dist(sim1, sim1, i, i-1, metric)
+        distance[i] = distance[i-1] + dist(model, model, i, i-1, metric)
     end
     model.df[!,:distance] = distance
 

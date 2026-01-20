@@ -137,17 +137,16 @@ metric = StarStats.EuclideanMetric()
 model_set = StellarModelSet(inputs, [:q, :logP], path_constructor, binary_dataframe_loader, compute_distance_and_EEPs_binaries!, metric);
 
 ##
-number_of_params, id_s, matrix_of_params = StarStats.suggest_new_simulations(model_set, "output.txt")
-##
-#If you want ot verify the bad simplexes
-verify_simplexes(model_set)
+suggest_ref_failed = StarStats.refine_model_set_failed_interpolation(model_set)
+number_of_params = length(model_set.input_names)
+#verify_simplexes(model_set)
 ##
 df,evol_colors = array_of_colors(model_set)
 ##
-matrix_of_params_for_ref, id_s_for_ref  = suggest_refinment(model_set)
+suggest_extra_ref = suggested_refinment_after_IQR(model_set)
 ##
 
-function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInterpolant{N,P,LU,E,V}, matrix_of_params, matrix_of_params_for_ref) where {N,P,LU,E,V}
+function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInterpolant{N,P,LU,E,V}, suggest_ref_failed ) where {N,P,LU,E,V}
     if size(si.points)[1] != 2
         return
     end
@@ -166,12 +165,13 @@ function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInte
     end
 
     #This is for bad simplexes
-    for i in 1:length(matrix_of_params[1,:])
-        scatter!(ax,matrix_of_params[1,i], matrix_of_params[2,i], color = "blue", markersize=7)
+    for i in 1:length(suggest_ref_failed[:q])
+        scatter!(ax,suggest_ref_failed[:q][i], suggest_ref_failed[:logP][i], color = "blue", markersize=7)
     end
     #This is for extra refinment
-    for m in 1:length(matrix_of_params_for_ref[1,:])
-        scatter!(ax,matrix_of_params_for_ref[1,m], matrix_of_params_for_ref[2,m], color = "pink", markersize=7)
+   
+    for m in 1:length(suggest_extra_ref[:q])
+        scatter!(ax,suggest_extra_ref[:q][m], suggest_extra_ref[:logP][m], color = "pink", markersize=7)
     end
 
     for i in 1:length(df.simplex_id)
@@ -188,10 +188,10 @@ end
 ##
 fig = Figure()
 ax = Axis(fig[1,1], xlabel="q", ylabel="logP")
-visualize_simplex_interpolant(ax, model_set, model_set.simplex_interpolant, matrix_of_params, matrix_of_params_for_ref)
-labels = ["different_evol","different_evol","different_evol", "extra refinment", "bad interpolation"]
+visualize_simplex_interpolant(ax, model_set, model_set.simplex_interpolant, suggest_ref_failed )
+labels = ["different_evol","different_evol","different_evol", "bad interpolation","extra_refinment"]
 my_colors = evol_colors
-
+##
 append!(my_colors, ["pink"])
 append!(my_colors, ["blue"])
 
@@ -202,10 +202,11 @@ leg = Legend(fig[1, 2],
     patchsize=(30, 20),
     labelsize=12
 )
-save("testing_simpl.png", fig)
+#save("testing_simpl.png", fig)
 fig
 
 ##
+#=
 #HERE IS JUST A BARPLOT TO HAVE SOME SENCE OF DATASET
 
 matrix_total_for_statistic, matrix_total_for_statistic_point_to_point = statistics_for_dataset(model_set)
@@ -316,3 +317,4 @@ leg = Legend(fig[1, 2],
 save("testing_simpl.png", fig)
 =#
 fig
+=#
