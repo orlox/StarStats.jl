@@ -51,7 +51,7 @@ end
 
 #this fuction give diffrent colors for different evolutions
 function array_of_colors(model_set::StellarModelSet)
-    color_list = ["cyan","red","yellow","orange","pink","brown","gray","white","magenta",
+    color_list = ["cyan","red","yellow","orange","brown","gray","white","magenta",
     "violet","indigo","gold","silver","maroon","olive","navy","teal","coral","lavender"]
     df = DataFrame(
     simplex_id = [],

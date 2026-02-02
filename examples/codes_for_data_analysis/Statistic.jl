@@ -3,6 +3,7 @@ using Statistics
 function IQR(data)
 
     Q1 = quantile(data, 0.25)
+
     Q3 = quantile(data, 0.75)
     iqr = Q3 - Q1
 
@@ -15,19 +16,20 @@ end
 
 function filter_data_new!(model_set)
     
-    #extra_refinment_flag = zeros(length(refine_model_set_bad_resolution[:difference]))
+    refine_dict[:extra_refinment_flag] =Vector{Int}(undef,zeros(length(refine_model_set_bad_resolution[:difference])))
     refine_dict = StarStats.refine_model_set_bad_resolution(model_set)
     upper_outlier = IQR(refine_dict[:difference])
     upper_outlier_point_to_point = IQR(refine_dict[:distance_between_eeps])
     refine_dict[:extra_refinment_flag] = zeros(Int,0)
     for m in 1:length(refine_dict[:difference])
         if (refine_dict[:difference][m] > upper_outlier) || (refine_dict[:distance_between_eeps][m] > upper_outlier_point_to_point) 
-            append!(refine_dict[:extra_refinment_flag],1)
+            #append!(refine_dict[:extra_refinment_flag],1)
+            refine_dict[:extra_refinment_flag][m] = 1
         else
-            append!(refine_dict[:extra_refinment_flag],0)
+            #append!(refine_dict[:extra_refinment_flag],0)
+            refine_dict[:extra_refinment_flag][m] = 0
         end
     end
-    #HERE WE ACTUALLY CAN ADD IT TO THE SIMPLEX
     
     return refine_dict
 end
@@ -41,7 +43,6 @@ function suggested_refinment_after_IQR(model_set)
     end
     models = model_set.models
     for m in 1:length(refine_dict[:extra_refinment_flag])
-        println(m)
         if refine_dict[:extra_refinment_flag][m] == 1 #need extra refinment
             for s in 1:length(model_set.input_names)
                 model1 = models[refine_dict[:models][m][1]] #mth model which need ref and 1 is 1st model in pair

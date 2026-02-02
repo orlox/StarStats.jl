@@ -146,7 +146,7 @@ df,evol_colors = array_of_colors(model_set)
 suggest_extra_ref = suggested_refinment_after_IQR(model_set)
 ##
 
-function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInterpolant{N,P,LU,E,V}, suggest_ref_failed ) where {N,P,LU,E,V}
+function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInterpolant{N,P,LU,E,V}, suggest_ref_failed,suggest_extra_ref,df ) where {N,P,LU,E,V}
     if size(si.points)[1] != 2
         return
     end
@@ -165,13 +165,15 @@ function visualize_simplex_interpolant(ax, model_set,  si::StarStats.SimplexInte
     end
 
     #This is for bad simplexes
-    for i in 1:length(suggest_ref_failed[:q])
-        scatter!(ax,suggest_ref_failed[:q][i], suggest_ref_failed[:logP][i], color = "blue", markersize=7)
+    name_1 = model_set.input_names[1]
+    name_2 = model_set.input_names[2]
+    for i in 1:length(suggest_ref_failed[name_1])
+        scatter!(ax,suggest_ref_failed[name_1][i], suggest_ref_failed[name_2][i], color = "blue", markersize=7)
     end
     #This is for extra refinment
    
-    for m in 1:length(suggest_extra_ref[:q])
-        scatter!(ax,suggest_extra_ref[:q][m], suggest_extra_ref[:logP][m], color = "pink", markersize=7)
+    for m in 1:length(suggest_extra_ref[name_1])
+        scatter!(ax,suggest_extra_ref[name_1][m], suggest_extra_ref[name_2][m], color = "pink", markersize=7)
     end
 
     for i in 1:length(df.simplex_id)
@@ -188,7 +190,7 @@ end
 ##
 fig = Figure()
 ax = Axis(fig[1,1], xlabel="q", ylabel="logP")
-visualize_simplex_interpolant(ax, model_set, model_set.simplex_interpolant, suggest_ref_failed )
+visualize_simplex_interpolant(ax, model_set, model_set.simplex_interpolant, suggest_ref_failed,suggest_extra_ref,df )
 labels = ["different_evol","different_evol","different_evol", "bad interpolation","extra_refinment"]
 my_colors = evol_colors
 ##

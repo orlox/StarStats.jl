@@ -74,20 +74,7 @@ If interpolation is not recommended in the current simplex it returnes a file wi
 """
 #refine_model_set_working_interpolation
 function refine_model_set_failed_interpolation(model_set::StellarModelSet)#, file_name::String)
-    ##delete file if one already exists in the directory
-    #if isfile(file_name)
-    #    rm(file_name)  
-    #end
-    #f = open(file_name, "a") 
 
-    ##create modelset 
-    #models = model_set.models
-    #names = model_set.input_names
-    ##write parameter names in the file
-    #for i in 1:length(names)
-    #        write(f,names[i], " ")
-    #end
-    #write(f, "\n")
     models = model_set.models
     suggested_sims = Dict()
     for input_param in model_set.input_names
@@ -101,13 +88,14 @@ function refine_model_set_failed_interpolation(model_set::StellarModelSet)#, fil
         simplex = model_set.simplex_interpolant.simplexes[i]
         if !model_set.can_interpolate_simplex[i]  
             append!(suggested_sims[:simplex_id], simplex.id)
-            models_ids, dist = calculate_longest_edge(models, simplex) #TODO
+            models_ids, dist = calculate_longest_edge(models, simplex) 
         
             #The idea is to devide this edge into half and provide new parameters to calculated models  
             for s in 1:length(model_set.input_names)
                 mean_param = (parse(Float64,models[models_ids[1]].input_params[s])+parse(Float64,models[models_ids[2]].input_params[s]))/2
                 append!(suggested_sims[model_set.input_names[s]], mean_param)  
             end
+
             append!(suggested_sims[:distance], dist)
         end
     end
@@ -118,22 +106,65 @@ function refine_model_set_failed_interpolation(model_set::StellarModelSet)#, fil
     for input_param in model_set.input_names
         suggested_sims[input_param] = suggested_sims[input_param][unique_filter]
     end
+
     suggested_sims[:distance] = suggested_sims[:distance][unique_filter]
     suggested_sims[:simplex_id] = suggested_sims[:simplex_id][unique_filter]
 
     return suggested_sims
-    
-    #number_of_params = length(models[1].input_params)
-    #matrix_of_params = params_for_simulations(number_of_params, params_array) #make a matrix with data instead of arrays
-    #matrix_of_params_uniq,id_s_uniq = delete_same_models_2D(matrix_of_params,id_s) #delete same elements
-    #number_of_params_uniq = length(id_s_uniq)
+end
 
-    #for i in 1:length(matrix_of_params_uniq[1,:])
-    #    write(f, string(matrix_of_params_uniq[1,i]), " ",string(matrix_of_params_uniq[2,i]))
-    #    write(f, "\n")          
-    #end
-    #close(f)
-    #return number_of_params_uniq, id_s_uniq, matrix_of_params_uniq
+function refine_model_set_failed_interpolation_diff_evol(model_set::StellarModelSet)#, file_name::String)
+
+    models = model_set.models
+    suggested_sims = Dict()
+    for input_param in model_set.input_names
+        suggested_sims[input_param] = zeros(Float64, 0)
+    end
+    suggested_sims[:simplex_id] = zeros(Int, 0)
+
+    #create arrays to return
+    for i in eachindex(model_set.simplex_interpolant.simplexes)
+        simplex = model_set.simplex_interpolant.simplexes[i]
+        #if !model_set.can_interpolate_simplex[i]   #IS IT OBLIOUS????
+           
+        models_ids_diff_ev = find_differen_evolution(models, simplex)
+        if length(models_ids_diff_ev[:,1]) > 0
+            
+            for t in 1:length(models_ids_diff_ev[:,1])
+                for s in 1:length(model_set.input_names)
+                    mean_param_diff_evol = (parse(Float64,models[models_ids_diff_ev[t][1]].input_params[s])+parse(Float64,models[models_ids_diff_ev[t][2]].input_params[s]))/2
+                    append!(suggested_sims[model_set.input_names[s]], mean_param_diff_evol) 
+                end
+                append!(suggested_sims[:simplex_id], simplex.id)
+            end
+        end
+
+        #end
+    end
+
+    #filter evol params as well
+    unique_indices = find_exact_duplicates(suggested_sims, model_set)
+    
+    for input_param in model_set.input_names
+        suggested_sims[input_param] = suggested_sims[input_param][unique_indices]
+    end
+    suggested_sims[:simplex_id] = suggested_sims[:simplex_id][unique_indices]
+
+    return suggested_sims
+end
+
+function find_exact_duplicates(suggested_sims, model_set)
+    seen = Set{Tuple}()
+    unique_indices = Int[]
+    
+    for i in 1:length(suggested_sims[:simplex_id])
+        params = tuple([suggested_sims[name][i] for name in model_set.input_names]...)
+        if !(params in seen)
+            push!(seen, params)
+            push!(unique_indices, i)
+        end
+    end
+    return unique_indices
 end
 
  """   
@@ -143,6 +174,7 @@ end
 
 function calculate_longest_edge(models, simplex)
     max_distance = -1
+    
     # TODO: add squared values, take sqrt after
     #calculate other edges and compare 
     model_ids = [0,0]
@@ -153,16 +185,41 @@ function calculate_longest_edge(models, simplex)
             for m in 1:length(models[1].input_params)
                 k_th_model = simplex.point_indeces[k]
                 s_th_model = simplex.point_indeces[s]
-                sum_sqr_calc = sum_sqr_calc + sqrt((parse(Float64,models[k_th_model].input_params[m])-parse(Float64,models[s_th_model].input_params[m]))^2)
+                sum_sqr_calc = sum_sqr_calc + (parse(Float64,models[k_th_model].input_params[m])-parse(Float64,models[s_th_model].input_params[m]))^2
             end
-            if max_distance == -1 && sum_sqr_calc > max_distance
+            distance = sqrt(sum_sqr_calc)
+            if distance > max_distance
                 model_ids = [simplex.point_indeces[k], simplex.point_indeces[s]]
-                max_distance = sum_sqr_calc
+                max_distance = distance
             end
         end
     end
     return model_ids, max_distance
 end
+
+function find_differen_evolution(models, simplex)
+    model_ids = []
+    for k in 1: length(simplex.point_indeces)
+        for s in k+1: length(simplex.point_indeces)
+            k_th_model = simplex.point_indeces[k]
+            s_th_model = simplex.point_indeces[s]
+            if (length(models[k_th_model].EEP_names) == length(models[s_th_model].EEP_names))
+                for i in 1:length(models[k_th_model].EEP_names)
+                    if models[k_th_model].EEP_names[i] != models[s_th_model].EEP_names[i]
+                        push!(model_ids, [k_th_model, s_th_model])
+                        break
+                    end
+                end
+            else
+                push!(model_ids, [k_th_model, s_th_model])
+            end
+        end
+    end
+    return model_ids
+end
+
+
+
 
 #function used for statistics and refinment
 #returns df with the largest difference between distance between 2eeps on 2 tracs for 2 models, 
@@ -232,35 +289,37 @@ end
 
 
 function refine_model_set_bad_resolution(model_set::StellarModelSet)
+    n_dimensions = length(model_set.input_names)
+    count_eligible = sum(model_set.can_interpolate_simplex .== 1)
+    max_number_of_refinments = Integer(n_dimensions*(n_dimensions+1)/2*count_eligible)
 
-    suggested_sims = Dict()
-  
-    suggested_sims[:models] = []
-    suggested_sims[:simplex_id] = zeros(Int, 0)
-    suggested_sims[:difference] = zeros(Float64, 0)
-    suggested_sims[:distance_between_eeps] = zeros(Float64, 0)
+    suggested_sims = Dict(
+        :models => Vector{Vector{Int64}}(undef, max_number_of_refinments),
+        :simplex_id => Vector{Int}(undef, max_number_of_refinments),
+        :difference => Vector{Float64}(undef, max_number_of_refinments),
+        :distance_between_eeps => Vector{Float64}(undef, max_number_of_refinments)
+    )
 
+    idx = 1
+    simplexes = model_set.simplex_interpolant.simplexes
+    can_interpolate = model_set.can_interpolate_simplex
+    models = model_set.models
+    metric = model_set.metric
 
-    #indices = findall(x -> x == 1, model_set.can_interpolate_simplex)
-    #number_of_simplexes = length(indices) # we take only simplexes where we can interpolate
-    #we construc dataframe with comparisions for 1st simplex and take the len so we know number of comparisions
-    #number_of_comparision = length(StarStats.length_between_EEPs(model_set.simplex_interpolant.simplexes[1], models, model_set.metric).difference)
-    #matrix_total_for_statistic = zeros(number_of_simplexes*number_of_comparision )  # Here we store difference between distacenses of 2 eeps on one curve between 2 curves
-    #matrix_total_for_statistic_point_to_point = zeros(number_of_simplexes*number_of_comparision )  # Here we store distance between EEPs in 2 curves
-    #number = 0
-    for i in eachindex(model_set.simplex_interpolant.simplexes)
-        if model_set.can_interpolate_simplex[i] == 1 #this checks that all all models have same number of eeps in simplex
-            models = model_set.models
-            simplex = model_set.simplex_interpolant.simplexes[i]
-            df = StarStats.length_between_EEPs(simplex, models, model_set.metric)
+    for i in eachindex(simplexes)
+        if can_interpolate[i] == 1
+            simplex = simplexes[i]
+            df = StarStats.length_between_EEPs(simplex, models, metric)
+            
+            idx_end = idx+length(df.difference)-1
 
-            append!( suggested_sims[:models], df.model_pair)
-            append!( suggested_sims[:simplex_id], simplex.id)
-            append!( suggested_sims[:difference], df.difference)
-            append!( suggested_sims[:distance_between_eeps], df.distance_between_eeps)
-
+            suggested_sims[:models][idx:idx_end] = df.model_pair
+            suggested_sims[:simplex_id][idx:idx_end] .= simplex.id
+            suggested_sims[:difference][idx:idx_end] = df.difference
+            suggested_sims[:distance_between_eeps][idx:idx_end] = df.distance_between_eeps
+            
+            idx = idx_end+1
         end
     end
-    return  suggested_sims 
-
+    return suggested_sims
 end
