@@ -27,7 +27,7 @@ Quickhull = "0.2.1"
 StaticArrays = "1.9.13"
 Statistics = "1.11.1"
 StatsBase = "0.34.5"
-Turing = "0.35, 0.36, 0.40, 0.41, 0.42, 0.43"
+Turing = "0.35, 0.36, 0.40, 0.41, 0.42, 0.43, 0.44"
 julia = "1.8"
 
 [extras]
