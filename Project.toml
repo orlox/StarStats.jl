@@ -3,6 +3,9 @@ uuid = "3d48db48-6773-11ed-1a7e-43a2532b2fa8"
 version = "0.15.0"
 authors = ["Pablo Marchant", "Alina Istrate"]
 
+[workspace]
+projects = ["docs"]
+
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -17,7 +20,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
 
 [compat]
-CSV = "0.10"
+CSV = "0.10, 1"
 DataFrames = "1.4"
 FTPClient = "1.2.1"
 Interpolations = "0.14, 0.15, 0.16"
@@ -35,6 +38,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
-
-[workspace]
-projects = ["docs"]
